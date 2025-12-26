@@ -1,0 +1,31 @@
+---
+title: Plugins
+description: Extend Arctic with custom integrations.
+---
+
+Plugins let you extend Arctic with custom hooks (auth, events, tools). This is optional and intended for power users.
+
+## What plugins can do
+
+- Add authentication methods for custom providers
+- Listen to events (sessions, messages, tools)
+- Inject configuration at runtime
+
+## Minimal shape
+
+```ts
+import type { Plugin } from "@arctic-ai/plugin";
+
+export default (async () => {
+  return {
+    config: async (config) => {
+      // modify config
+    },
+    event: async ({ event }) => {
+      // observe events
+    },
+  };
+}) satisfies Plugin;
+```
+
+If you need plugin examples or a full API reference, ask for it and we can expand this page.

@@ -1,0 +1,42 @@
+---
+title: Snapshots
+description: Git-based snapshots for undo and revert.
+---
+
+Arctic uses Git‑based snapshots to track your working tree state. This enables safe undo/revert and benchmarking workflows.
+
+## What snapshots are for
+
+- Undo AI changes
+- Compare changes in a session
+- Apply and revert benchmark results
+
+## Where snapshots live
+
+Snapshots use a separate Git repository:
+
+```
+~/.local/share/arctic/snapshot/<projectID>/
+```
+
+This is separate from your project’s `.git` directory.
+
+## View diffs
+
+```bash
+arctic session diff <session-id>
+```
+
+## Restore from a snapshot
+
+```bash
+arctic debug snapshot restore <hash>
+```
+
+## Toggle snapshots
+
+```json
+{
+  "snapshot": true
+}
+```

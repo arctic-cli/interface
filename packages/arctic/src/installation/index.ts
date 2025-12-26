@@ -1,0 +1,197 @@
+import { BusEvent } from "@/bus/bus-event"
+import { Bus } from "@/bus"
+import path from "path"
+import { $ } from "bun"
+import z from "zod"
+import { NamedError } from "@arctic-ai/util/error"
+import { Log } from "../util/log"
+import { iife } from "@/util/iife"
+import { Flag } from "../flag/flag"
+
+declare global {
+  const ARCTIC_VERSION: string
+  const ARCTIC_CHANNEL: string
+}
+
+export namespace Installation {
+  const log = Log.create({ service: "installation" })
+
+  export type Method = Awaited<ReturnType<typeof method>>
+
+  export const Event = {
+    Updated: BusEvent.define(
+      "installation.updated",
+      z.object({
+        version: z.string(),
+      }),
+    ),
+    UpdateAvailable: BusEvent.define(
+      "installation.update-available",
+      z.object({
+        version: z.string(),
+      }),
+    ),
+  }
+
+  export const Info = z
+    .object({
+      version: z.string(),
+      latest: z.string(),
+    })
+    .meta({
+      ref: "InstallationInfo",
+    })
+  export type Info = z.infer<typeof Info>
+
+  export async function info() {
+    return {
+      version: VERSION,
+      latest: await latest(),
+    }
+  }
+
+  export function isPreview() {
+    return CHANNEL !== "latest"
+  }
+
+  export function isLocal() {
+    return CHANNEL === "local"
+  }
+
+  export async function method() {
+    if (process.execPath.includes(path.join(".arctic", "bin"))) return "curl"
+    if (process.execPath.includes(path.join(".local", "bin"))) return "curl"
+    const exec = process.execPath.toLowerCase()
+
+    const checks = [
+      {
+        name: "npm" as const,
+        command: () => $`npm list -g --depth=0`.throws(false).text(),
+      },
+      {
+        name: "yarn" as const,
+        command: () => $`yarn global list`.throws(false).text(),
+      },
+      {
+        name: "pnpm" as const,
+        command: () => $`pnpm list -g --depth=0`.throws(false).text(),
+      },
+      {
+        name: "bun" as const,
+        command: () => $`bun pm ls -g`.throws(false).text(),
+      },
+      {
+        name: "brew" as const,
+        command: () => $`brew list --formula arctic`.throws(false).text(),
+      },
+    ]
+
+    checks.sort((a, b) => {
+      const aMatches = exec.includes(a.name)
+      const bMatches = exec.includes(b.name)
+      if (aMatches && !bMatches) return -1
+      if (!aMatches && bMatches) return 1
+      return 0
+    })
+
+    for (const check of checks) {
+      const output = await check.command()
+      if (output.includes(check.name === "brew" ? "arctic" : "arctic-ai")) {
+        return check.name
+      }
+    }
+
+    return "unknown"
+  }
+
+  export const UpgradeFailedError = NamedError.create(
+    "UpgradeFailedError",
+    z.object({
+      stderr: z.string(),
+    }),
+  )
+
+  async function getBrewFormula() {
+    const tapFormula = await $`brew list --formula sst/tap/arctic`.throws(false).text()
+    if (tapFormula.includes("arctic")) return "sst/tap/arctic"
+    const coreFormula = await $`brew list --formula arctic`.throws(false).text()
+    if (coreFormula.includes("arctic")) return "arctic"
+    return "arctic"
+  }
+
+  export async function upgrade(method: Method, target: string) {
+    let cmd
+    switch (method) {
+      case "curl":
+        cmd = $`curl -fsSL https://arcticli.com/install | bash`.env({
+          ...process.env,
+          VERSION: target,
+        })
+        break
+      case "npm":
+        cmd = $`npm install -g arctic-ai@${target}`
+        break
+      case "pnpm":
+        cmd = $`pnpm install -g arctic-ai@${target}`
+        break
+      case "bun":
+        cmd = $`bun install -g arctic-ai@${target}`
+        break
+      case "brew": {
+        const formula = await getBrewFormula()
+        cmd = $`brew install ${formula}`.env({
+          HOMEBREW_NO_AUTO_UPDATE: "1",
+          ...process.env,
+        })
+        break
+      }
+      default:
+        throw new Error(`Unknown method: ${method}`)
+    }
+    const result = await cmd.quiet().throws(false)
+    log.info("upgraded", {
+      method,
+      target,
+      stdout: result.stdout.toString(),
+      stderr: result.stderr.toString(),
+    })
+    if (result.exitCode !== 0)
+      throw new UpgradeFailedError({
+        stderr: result.stderr.toString("utf8"),
+      })
+  }
+
+  export const VERSION = typeof ARCTIC_VERSION === "string" ? ARCTIC_VERSION : "local"
+  export const CHANNEL = typeof ARCTIC_CHANNEL === "string" ? ARCTIC_CHANNEL : "local"
+  export const USER_AGENT = `arctic/${CHANNEL}/${VERSION}/${Flag.ARCTIC_CLIENT}`
+
+  export async function latest(installMethod?: Method) {
+    const detectedMethod = installMethod || (await method())
+    if (detectedMethod === "brew") {
+      const formula = await getBrewFormula()
+      if (formula === "arctic") {
+        return fetch("https://formulae.brew.sh/api/formula/arctic.json")
+          .then((res) => {
+            if (!res.ok) throw new Error(res.statusText)
+            return res.json()
+          })
+          .then((data: any) => data.versions.stable)
+      }
+    }
+
+    const registry = await iife(async () => {
+      const r = (await $`npm config get registry`.quiet().nothrow().text()).trim()
+      const reg = r || "https://registry.npmjs.org"
+      return reg.endsWith("/") ? reg.slice(0, -1) : reg
+    })
+    const [major] = VERSION.split(".").map((x) => Number(x))
+    // const channel = CHANNEL === "latest" ? `latest-${major}` : CHANNEL
+    const channel = CHANNEL
+    return fetch(`${registry}/arctic-ai/${channel}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(res.statusText)
+        return res.json()
+      })
+      .then((data: any) => data.version)
+  }
+}

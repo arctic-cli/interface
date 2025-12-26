@@ -1,0 +1,142 @@
+---
+title: TUI Guide
+description: Master the Arctic terminal user interface.
+---
+
+The Arctic TUI (Terminal User Interface) is the primary way to interact with models. It’s keyboard‑first and fast.
+
+## Launch
+
+```bash
+arctic
+```
+
+## Layout
+
+- **Input** (bottom): type prompts
+- **Messages** (center): conversation history
+- **Sidebar** (left): session info, navigation
+- **Header** (top): model, agent, session
+- **Footer** (bottom): status + hints
+
+## Input
+
+- `Enter` submits
+- `Ctrl+J` inserts a newline
+- `Up/Down` cycles prompt history
+
+### Ctrl+C behavior
+
+`Ctrl+C` is context‑aware:
+
+- If there is selected text, it copies the selection.
+- If there is input text, it clears the input.
+- If pressed twice quickly, it exits the CLI.
+
+## Essential shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+X Q` | Quit Arctic |
+| `Ctrl+X M` | Model picker |
+| `Ctrl+X A` | Agent picker |
+| `Ctrl+X N` | New session |
+| `Ctrl+X L` | Session list |
+| `Ctrl+P` | Command palette |
+| `Ctrl+X /` | Run slash command |
+| `Ctrl+X B` | Toggle sidebar |
+| `Ctrl+X H` | Toggle code block concealment |
+
+## Sessions
+
+- Start a new session: `Ctrl+X N`
+- Switch sessions: `Ctrl+X L`
+- Timeline view: `Ctrl+X G`
+
+## Models and agents
+
+- Pick a model: `Ctrl+X M`
+- Pick an agent: `Ctrl+X A`
+
+Both dialogs support search and quick filter.
+
+## Tools and streaming
+
+As responses stream you’ll see tool usage (bash/read/edit/etc.) inline with the message output.
+
+## Copy & selection
+
+- Mouse select to copy
+- Keyboard select with `Shift` + arrows
+- Copy entire message: `Ctrl+X Y`
+
+## Dialogs
+
+### Model picker
+
+Search and select models with details like provider and context size.
+
+### Agent picker
+
+Select or create agents. Shows description, mode, and model override.
+
+### Session list
+
+Browse sessions, view last updated time, and delete sessions.
+
+### Command palette
+
+Search and run actions quickly.
+
+### Theme picker
+
+Pick a theme or load one from config.
+
+## Customization
+
+### Keybindings
+
+Override keybindings in config:
+
+```json
+{
+  "keybinds": {
+    "quit": "ctrl+q",
+    "model_picker": "ctrl+m",
+    "new_session": "ctrl+n"
+  }
+}
+```
+
+### Themes
+
+Set a theme name in config and provide a theme file:
+
+```json
+{
+  "theme": "my-theme"
+}
+```
+
+Create `~/.config/arctic/themes/my-theme.json`:
+
+```json
+{
+  "background": "#1a1a1a",
+  "foreground": "#e0e0e0",
+  "primary": "#00ff00",
+  "secondary": "#ff00ff",
+  "accent": "#00ffff",
+  "error": "#ff0000"
+}
+```
+
+## Troubleshooting
+
+If the TUI looks wrong:
+
+```bash
+reset
+```
+
+If keybindings don’t work, check terminal settings and consider remapping in config.

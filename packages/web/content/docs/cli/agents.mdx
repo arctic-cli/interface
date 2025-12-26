@@ -1,0 +1,53 @@
+---
+title: Agents
+description: Create and manage custom agents.
+---
+
+Agents are specialized assistants with custom prompts and tool rules.
+
+## Create an agent
+
+```bash
+arctic agent create
+```
+
+Agents are stored as markdown files with frontmatter in:
+
+- Project: `.arctic/agent/*.md`
+- Global: `~/.config/arctic/agent/*.md`
+
+## Agent file format
+
+```md
+---
+description: "Writes backend APIs"
+mode: primary
+model: "provider/model"
+tools:
+  bash: true
+  edit: true
+  write: true
+  webfetch: false
+permission:
+  edit: ask
+  bash:
+    "*": ask
+---
+
+You are a backend assistant. Focus on services, data, and API design.
+```
+
+## Modes
+
+- `primary`: main assistant
+- `subagent`: callable via task tool
+- `all`: both primary and subagent
+
+## Use an agent
+
+- TUI: `Ctrl+X A`
+- CLI: `arctic run --agent <name> "..."`
+
+## Remove an agent
+
+Delete the file from `.arctic/agent` (project) or `~/.config/arctic/agent` (global).

@@ -1,0 +1,43 @@
+---
+title: Usage Limits
+description: View usage and rate limits across providers.
+---
+
+Arctic aggregates usage and limits across providers in one place.
+
+## Command
+
+```bash
+arctic run --command usage
+```
+
+## TUI shortcut
+
+In the TUI prompt:
+
+```
+/usage
+```
+
+This opens the Usage dialog.
+
+## What you’ll see
+
+- **Provider tabs**: switch providers with `Tab`
+- **Access status**: allowed / blocked / limit reached
+- **Plan** (if available)
+- **Updated time**
+- **Token usage**: total/input/output/cached
+- **Cost summary**: total + breakdown (if available)
+- **Limits**: primary/secondary windows with % remaining + reset time
+
+### Time periods (Anthropic + Z.ai)
+
+For Anthropic and Z.ai coding plans, you can switch the time window in the dialog:
+
+- `1` Session
+- `2` Daily
+- `3` Weekly
+- `4` Monthly
+
+If a provider doesn’t expose limits, it will show “unknown.”

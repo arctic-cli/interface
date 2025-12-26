@@ -1,0 +1,26 @@
+---
+title: Tools
+description: Built‑in tools and how they behave.
+---
+
+Arctic exposes a curated toolset to the model. Tools are permission‑gated and can be disabled per agent.
+
+## Built‑in tools
+
+- `bash` — run shell commands
+- `read` / `write` / `edit` — file access
+- `list` / `glob` / `grep` — file discovery and search
+- `webfetch` — fetch URLs as text
+- `websearch` / `codesearch` — web and code search (requires Arctic provider or `ARCTIC_ENABLE_EXA`)
+- `task` — spawn a sub‑agent session
+- `todowrite` / `todoread` — per‑session todo list
+- `batch` — run tools in parallel
+
+## Controlling tools
+
+Tools can be limited by:
+
+- Agent frontmatter (`tools` and `permission`)
+- Global config (`tools`, `permission`)
+
+See [Permissions](/docs/cli/permissions).

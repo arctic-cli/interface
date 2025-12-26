@@ -1,0 +1,42 @@
+---
+title: Projects
+description: How Arctic groups sessions and config by project.
+---
+
+Arctic groups sessions by **project**. A project is usually your Git worktree root.
+
+## How projects are detected
+
+- **Git repo**: the worktree root is the project
+- **No Git**: the current directory is the project
+
+This keeps sessions, snapshots, and config isolated per project.
+
+## Project config
+
+Create `.arctic/arctic.json` in your repo to override global settings:
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-5",
+  "enabled_providers": ["anthropic", "openai"]
+}
+```
+
+Config precedence (later wins):
+
+1. Global: `~/.config/arctic/arctic.json`
+2. Project: `<worktree>/.arctic/arctic.json`
+3. Directory: `<directory>/arctic.json`
+
+## Storage layout (simplified)
+
+Project‑scoped data lives under `~/.local/share/arctic/storage/`:
+
+- Sessions: `storage/session/<projectID>/<sessionID>.json`
+- Messages: `storage/message/<sessionID>/<messageID>.json`
+- Parts: `storage/part/<messageID>/<partID>.json`
+
+Snapshots are stored separately:
+
+- `~/.local/share/arctic/snapshot/<projectID>/`

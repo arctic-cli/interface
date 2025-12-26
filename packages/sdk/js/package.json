@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@arctic-ai/sdk",
+  "version": "0.0.4-beta",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "build": "./script/build.ts"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "types": "./dist/client.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    },
+    "./v2": {
+      "import": "./dist/v2/index.js",
+      "types": "./dist/v2/index.d.ts"
+    },
+    "./v2/client": {
+      "import": "./dist/v2/client.js",
+      "types": "./dist/v2/client.d.ts"
+    },
+    "./v2/server": {
+      "import": "./dist/v2/server.js",
+      "types": "./dist/v2/server.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.88.1",
+    "@tsconfig/node22": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "@typescript/native-preview": "catalog:"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "directory": "dist"
+  }
+}

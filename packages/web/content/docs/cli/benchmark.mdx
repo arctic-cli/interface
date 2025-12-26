@@ -1,0 +1,41 @@
+---
+title: Benchmarking
+description: Compare models on the same task.
+---
+
+Benchmarking lets you run the same prompt across multiple models, isolate changes, and apply the best result.
+
+## Start a benchmark (TUI)
+
+In the TUI prompt:
+
+```
+/benchmark start
+```
+
+This creates a **parent** session and **child** sessions for each model you select.
+
+## Common commands
+
+```
+/benchmark stop
+/benchmark next
+/benchmark prev
+/benchmark apply
+/benchmark undo
+```
+
+### Shortcuts (default)
+
+- Next session: `ctrl+shift+right`
+- Previous session: `ctrl+shift+left`
+- Apply changes: `ctrl+alt+a`
+- Undo changes: `ctrl+alt+u`
+
+## Typical flow
+
+1. Run `/benchmark start` and choose models
+2. Switch children with `/benchmark next` / `/benchmark prev`
+3. Apply a child’s changes with `/benchmark apply`
+4. Undo with `/benchmark undo`
+5. Exit with `/benchmark stop`

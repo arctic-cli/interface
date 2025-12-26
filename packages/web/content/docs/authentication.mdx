@@ -1,0 +1,52 @@
+---
+title: Authentication
+description: Sign in and manage credentials.
+---
+
+## Quick Start
+
+```bash
+arctic auth login
+```
+
+Choose a provider and follow the browser flow. Credentials are stored in `~/.config/arctic/auth.json`.
+
+## API Key Providers
+
+For providers that use API keys, set environment variables before launching Arctic:
+
+```bash
+export OPENAI_API_KEY="..."
+export ANTHROPIC_API_KEY="..."
+export GOOGLE_API_KEY="..."
+```
+
+Arctic auto‑detects these values on startup.
+
+## OAuth Providers
+
+Some providers use OAuth/device login (e.g., Codex, GitHub Copilot, Google). Run:
+
+```bash
+arctic auth login
+```
+
+Arctic handles token refresh automatically.
+
+## Import Existing Credentials
+
+If you already used the Codex CLI, Arctic can import:
+
+- `~/.codex/auth.json`
+
+## Manage Credentials
+
+```bash
+arctic auth list
+arctic auth logout
+```
+
+## More
+
+- Full provider list and notes: [Providers](/docs/providers)
+- Configuration options: [Config](/docs/cli/config)

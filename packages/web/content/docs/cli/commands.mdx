@@ -1,0 +1,128 @@
+---
+title: Commands
+description: Core CLI commands and patterns.
+---
+
+## Core
+
+### `arctic`
+
+Launch the TUI (default command).
+
+### `arctic run`
+
+Run a single prompt (headless).
+
+```bash
+arctic run "Summarize this repo"
+arctic run -f ./src/index.ts "Review this file"
+```
+
+Options:
+
+- `--command <name>` run a named command template
+- `--model <provider/model>` force a model
+- `--agent <name>` pick an agent
+- `--continue` or `--session <id>` resume a session
+- `--format json` stream raw events
+- `-f, --file` attach files or directories
+
+### `arctic models`
+
+List available models, optionally by provider:
+
+```bash
+arctic models
+arctic models openai --verbose
+```
+
+### `arctic auth`
+
+Manage credentials:
+
+```bash
+arctic auth login
+arctic auth list
+arctic auth logout
+```
+
+### `arctic agent`
+
+Create or list agents:
+
+```bash
+arctic agent create
+arctic agent list
+```
+
+### `arctic session`
+
+Manage sessions:
+
+```bash
+arctic session list
+arctic session fork <session-id>
+```
+
+### `arctic export` / `arctic import`
+
+```bash
+arctic export <sessionId>
+arctic import <file-or-url>
+```
+
+### `arctic stats`
+
+Usage and cost summary across sessions:
+
+```bash
+arctic stats --days 7
+```
+
+### `arctic mcp`
+
+Manage MCP servers:
+
+```bash
+arctic mcp list
+arctic mcp add
+arctic mcp auth
+arctic mcp logout
+```
+
+### `arctic debug`
+
+Low‑level debug tooling:
+
+```bash
+arctic debug config
+arctic debug file read <path>
+arctic debug snapshot diff <hash>
+```
+
+## Custom commands
+
+Commands are defined as markdown templates in:
+
+- Project: `.arctic/command/*.md`
+- Global: `~/.config/arctic/command/*.md`
+
+Each command file uses frontmatter:
+
+```md
+---
+description: "Review changes"
+model: "provider/model"
+agent: "build"
+subtask: true
+---
+
+Review the following changes:
+{{diff}}
+```
+
+Invoke with:
+
+```bash
+arctic run --command review
+```

@@ -1,0 +1,74 @@
+{
+  "models": {
+    "glm-4.7": {
+      "input": 0.6,
+      "output": 2.2,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.11
+    },
+    "glm-4.6": {
+      "input": 0.6,
+      "output": 2.2,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.11
+    },
+    "glm-4.6v": {
+      "input": 0.3,
+      "output": 0.9,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.05
+    },
+    "glm-4.6v-flashx": {
+      "input": 0.04,
+      "output": 0.4,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.004
+    },
+    "glm-4.5": {
+      "input": 0.6,
+      "output": 2.2,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.11
+    },
+    "glm-4.5v": {
+      "input": 0.6,
+      "output": 1.8,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.11
+    },
+    "glm-4.5-x": {
+      "input": 2.2,
+      "output": 8.9,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.45
+    },
+    "glm-4.5-air": {
+      "input": 0.2,
+      "output": 1.1,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.03
+    },
+    "glm-4.5-airx": {
+      "input": 1.1,
+      "output": 4.5,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.22
+    },
+    "glm-4-32b-0414-128k": {
+      "input": 0.1,
+      "output": 0.1
+    },
+    "glm-4.6v-flash": {
+      "input": 0.0,
+      "output": 0.0,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.0
+    },
+    "glm-4.5-flash": {
+      "input": 0.0,
+      "output": 0.0,
+      "cacheWrite": 0.0,
+      "cacheRead": 0.0
+    }
+  }
+}

@@ -1,0 +1,68 @@
+---
+title: Sessions
+description: Manage conversations and history.
+---
+
+Sessions are the core unit of conversation in Arctic. Every interaction with a model happens inside a session.
+
+## Create sessions
+
+- **TUI**: `arctic` starts a new session automatically.
+- **CLI**: `arctic run "..."` creates a session for the prompt.
+
+## List sessions
+
+```bash
+arctic session list
+```
+
+## Resume sessions
+
+Continue the most recent session:
+
+```bash
+arctic run --continue "follow‑up question"
+```
+
+Resume a specific session:
+
+```bash
+arctic run --session <session-id> "follow‑up question"
+```
+
+## Fork sessions
+
+Fork to explore a different approach without losing the original:
+
+```bash
+arctic session fork <session-id>
+```
+
+Fork from a specific message (exclusive):
+
+```bash
+arctic session fork <session-id> <message-id>
+```
+
+## Delete sessions
+
+```bash
+arctic session delete <session-id>
+```
+
+## Export / import
+
+```bash
+arctic export <session-id>
+arctic import <file-or-url>
+```
+
+## Diffs and snapshots
+
+See file changes made in a session:
+
+```bash
+arctic session diff <session-id>
+```
+
+Snapshots also power undo/revert and benchmarking. See [Snapshots](/docs/snapshots).

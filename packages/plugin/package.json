@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@arctic-ai/plugin",
+  "version": "0.0.4-beta",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "build": "tsc"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./tool": "./src/tool.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@arctic-ai/sdk": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@tsconfig/node22": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "@typescript/native-preview": "catalog:"
+  }
+}

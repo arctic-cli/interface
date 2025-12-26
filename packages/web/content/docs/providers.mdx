@@ -1,0 +1,128 @@
+---
+title: Providers
+description: Supported providers and how to connect them.
+---
+
+Arctic supports multiple provider types so you can keep all models in one CLI.
+
+## How to connect
+
+- **OAuth/device login**: `arctic auth login`
+- **API keys**: set environment variables and launch Arctic
+
+For credential management, see [Authentication](/docs/authentication).
+
+## Provider types
+
+### Coding‑plan providers
+
+These are subscription‑based coding plans (handled via OAuth/device login):
+
+- Anthropic
+- Codex (ChatGPT)
+- Google Gemini
+- GitHub Copilot
+- Z.ai
+- Antigravity
+
+### API providers
+
+These are API‑key or custom endpoint providers:
+
+- Anthropic
+- OpenAI
+- Google
+- OpenRouter
+- OpenAI‑compatible endpoints (custom URLs)
+
+## Custom providers (OpenAI‑compatible)
+
+You can add OpenAI‑compatible endpoints in config:
+
+```json
+{
+  "provider": {
+    "my-provider": {
+      "api": "https://api.example.com/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "$MY_PROVIDER_KEY"
+      }
+    }
+  }
+}
+```
+
+## Full list
+
+<details>
+  <summary>Show all supported providers</summary>
+
+- aihubmix
+- alibaba
+- alibaba-cn
+- amazon-bedrock
+- azure
+- azure-cognitive-services
+- bailing
+- baseten
+- cerebras
+- chutes
+- cloudflare-ai-gateway
+- cloudflare-workers-ai
+- cohere
+- cortecs
+- deepinfra
+- deepseek
+- fastrouter
+- fireworks-ai
+- github-models
+- google-vertex
+- google-vertex-anthropic
+- groq
+- helicone
+- huggingface
+- iflowcn
+- inception
+- inference
+- io-net
+- kimi-for-coding
+- llama
+- lmstudio
+- lucidquery
+- minimax
+- minimax-cn
+- mistral
+- modelscope
+- moonshotai
+- moonshotai-cn
+- morph
+- nebius
+- nvidia
+- ollama-cloud
+- opencode
+- ovhcloud
+- perplexity
+- poe
+- requesty
+- sap-ai-core
+- scaleway
+- siliconflow
+- siliconflow-cn
+- submodel
+- synthetic
+- togetherai
+- upstage
+- v0
+- venice
+- vercel
+- vultr
+- wandb
+- xai
+- xiaomi
+- zai-coding-plan
+- zenmux
+- zhipuai
+- zhipuai-coding-plan
+
+</details>

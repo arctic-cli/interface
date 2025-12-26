@@ -1,0 +1,1033 @@
+import { Auth } from "@/auth"
+import { CodexClient } from "@/auth/codex"
+import { decodeJWT, refreshAccessToken } from "@/auth/codex-oauth/auth/auth"
+import { JWT_CLAIM_PATH } from "@/auth/codex-oauth/constants"
+import { OAuth2Client } from "google-auth-library"
+import { Global } from "@/global"
+import fs from "fs/promises"
+import path from "path"
+import {
+  fetchCodexUsagePayload,
+} from "@/provider/codex-backend"
+import type {
+  CodexCreditsDetails,
+  CodexRateLimitWindowSnapshot,
+} from "@/provider/codex-backend"
+import {
+  fetchGithubCopilotUsage,
+  type QuotaSnapshot,
+} from "@/provider/github-copilot-backend"
+import { Provider } from "./provider"
+import { Pricing } from "./pricing"
+import z from "zod"
+import { Storage } from "../storage/storage"
+import { MessageV2 } from "../session/message-v2"
+
+export namespace ProviderUsage {
+  export type TimePeriod = "session" | "daily" | "weekly" | "monthly"
+
+  export const RateLimitWindowSummary = z.object({
+    usedPercent: z.number().nullable(),
+    windowMinutes: z.number().nullable().optional(),
+    resetsAt: z.number().nullable().optional(),
+  })
+  export type RateLimitWindowSummary = z.infer<typeof RateLimitWindowSummary>
+
+  export const CreditsSummary = z.object({
+    hasCredits: z.boolean(),
+    unlimited: z.boolean(),
+    balance: z.string().optional(),
+  })
+  export type CreditsSummary = z.infer<typeof CreditsSummary>
+
+  export const TokenUsage = z.object({
+    total: z.number().optional(),
+    input: z.number().optional(),
+    output: z.number().optional(),
+    cached: z.number().optional(),
+    cacheCreation: z.number().optional(),
+  })
+  export type TokenUsage = z.infer<typeof TokenUsage>
+
+  export const CostSummary = z.object({
+    totalCost: z.number().optional(),
+    inputCost: z.number().optional(),
+    outputCost: z.number().optional(),
+    cacheCreationCost: z.number().optional(),
+    cacheReadCost: z.number().optional(),
+  })
+  export type CostSummary = z.infer<typeof CostSummary>
+
+  export const Record = z.object({
+    providerID: z.string(),
+    providerName: z.string(),
+    planType: z.string().optional(),
+    allowed: z.boolean().optional(),
+    limitReached: z.boolean().optional(),
+    limits: z.object({
+      primary: RateLimitWindowSummary.optional(),
+      secondary: RateLimitWindowSummary.optional(),
+    }).optional(),
+    credits: CreditsSummary.optional(),
+    tokenUsage: TokenUsage.optional(),
+    costSummary: CostSummary.optional(),
+    fetchedAt: z.number(),
+    error: z.string().optional(),
+  })
+  export type Record = z.infer<typeof Record>
+
+  type UsageFetcher = (input: {
+    provider: Provider.Info
+    sessionID?: string
+    timePeriod?: TimePeriod
+  }) => Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">>
+
+  const usageFetchers: { [key: string]: UsageFetcher } = {
+    codex: fetchCodexUsage,
+    "zai-coding-plan": fetchZaiUsage,
+    anthropic: fetchZaiUsage, // Anthropic provider uses session-based tracking
+    "@ai-sdk/anthropic": fetchZaiUsage, // Alternative anthropic provider name
+    openrouter: fetchZaiUsage, // OpenRouter uses session-based tracking
+    "@openrouter/ai-sdk-provider": fetchZaiUsage, // Alternative openrouter provider name
+    "github-copilot": fetchGithubCopilotUsageWrapper,
+    google: fetchGoogleUsage,
+    "kimi-for-coding": fetchKimiUsage,
+  }
+
+  export async function fetch(
+    targetProviders?: string | string[],
+    options?: { sessionID?: string; timePeriod?: TimePeriod },
+  ): Promise<Record[]> {
+    const providers = await Provider.list()
+    const normalizedTargets = normalizeTargetProviders(targetProviders)
+    const providerIDs = (normalizedTargets && normalizedTargets.length > 0
+      ? normalizedTargets
+      : Object.keys(usageFetchers)
+    ).filter((id) => id in providers)
+
+    const timestamp = Date.now()
+    const results: Record[] = []
+
+    for (const providerID of providerIDs) {
+      const provider = providers[providerID]
+      const fetcher = usageFetchers[providerID]
+      const base: Record = {
+        providerID,
+        providerName: provider?.name ?? providerID,
+        fetchedAt: timestamp,
+      }
+
+      if (!fetcher) {
+        results.push({
+          ...base,
+          error: "Usage reporting not supported",
+        })
+        continue
+      }
+
+      try {
+        const details = await fetcher({
+          provider,
+          sessionID: options?.sessionID,
+          timePeriod: options?.timePeriod ?? "session",
+        })
+        results.push({
+          ...base,
+          ...details,
+        })
+      } catch (error) {
+        results.push({
+          ...base,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    return results
+  }
+
+  function normalizeTargetProviders(input?: string | string[]): string[] | undefined {
+    if (!input) return undefined
+    if (Array.isArray(input)) {
+      return input.filter((id) => typeof id === "string" && id.trim().length > 0)
+    }
+    return input
+      .split(/[\s,]+/)
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
+  }
+
+  async function fetchZaiUsage(input: {
+    provider: Provider.Info
+    sessionID?: string
+    timePeriod?: TimePeriod
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const timePeriod = input.timePeriod ?? "session"
+    const now = Date.now()
+
+    // Calculate time boundaries
+    const timeFilter = getTimeFilter(timePeriod, now)
+
+    let inputTokens = 0
+    let outputTokens = 0
+    let cacheReadTokens = 0
+    let cacheCreationTokens = 0
+    let found = false
+    let inspectedMessages = 0
+    let modelID: string | undefined
+
+    // For session mode, require sessionID
+    if (timePeriod === "session" && !input.sessionID) {
+      return {}
+    }
+
+    // Get messages to scan
+    let messageKeys: string[][]
+    if (timePeriod === "session" && input.sessionID) {
+      messageKeys = await Storage.list(["message", input.sessionID])
+    } else {
+      // For time-based queries, scan all sessions
+      const allSessions = await Storage.list(["message"])
+      messageKeys = allSessions
+    }
+
+    for (const messageKey of messageKeys) {
+      const msg = await Storage.read<MessageV2.Info>(messageKey)
+
+      // Filter by provider
+      if (msg.role !== "assistant" || msg.providerID !== input.provider.id || !msg.tokens) {
+        continue
+      }
+
+      // Filter by time period
+      const messageTime = msg.time?.completed ?? msg.time?.created
+      if (!messageTime || !timeFilter(messageTime)) {
+        continue
+      }
+
+      found = true
+      inspectedMessages++
+      inputTokens += msg.tokens.input ?? 0
+      outputTokens += msg.tokens.output ?? 0
+      cacheReadTokens += msg.tokens.cache?.read ?? 0
+      cacheCreationTokens += msg.tokens.cache?.write ?? 0
+
+      // Track the model ID from the last message
+      if (msg.modelID) {
+        modelID = msg.modelID
+      }
+    }
+
+    const totalTokens = inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens
+
+    if (!found) {
+      return {}
+    }
+
+    // Calculate costs if we have a model ID
+    let costSummary: CostSummary | undefined
+    if (modelID) {
+      const costBreakdown = await Pricing.calculateCostAsync(modelID, {
+        input: inputTokens,
+        output: outputTokens,
+        cacheCreation: cacheCreationTokens,
+        cacheRead: cacheReadTokens,
+      })
+
+      if (costBreakdown) {
+        costSummary = {
+          totalCost: costBreakdown.totalCost,
+          inputCost: costBreakdown.inputCost,
+          outputCost: costBreakdown.outputCost,
+          cacheCreationCost: costBreakdown.cacheCreationCost,
+          cacheReadCost: costBreakdown.cacheReadCost,
+        }
+      }
+    }
+
+    return {
+      tokenUsage: {
+        total: totalTokens,
+        input: inputTokens,
+        output: outputTokens,
+        cached: cacheReadTokens,
+        cacheCreation: cacheCreationTokens,
+      },
+      costSummary,
+    }
+  }
+
+  function getTimeFilter(period: TimePeriod, now: number): (timestamp: number) => boolean {
+    switch (period) {
+      case "session":
+        return () => true // No time filter for session mode
+
+      case "daily": {
+        const startOfDay = new Date(now)
+        startOfDay.setHours(0, 0, 0, 0)
+        return (timestamp: number) => timestamp >= startOfDay.getTime()
+      }
+
+      case "weekly": {
+        const startOfWeek = new Date(now)
+        // Get current day (0 = Sunday, 1 = Monday, etc.)
+        const currentDay = startOfWeek.getDay()
+        // Calculate days to subtract to get to Monday
+        // If Sunday (0), go back 6 days. Otherwise go back (currentDay - 1) days
+        const daysToMonday = currentDay === 0 ? 6 : currentDay - 1
+        startOfWeek.setDate(startOfWeek.getDate() - daysToMonday)
+        startOfWeek.setHours(0, 0, 0, 0)
+        return (timestamp: number) => timestamp >= startOfWeek.getTime()
+      }
+
+      case "monthly": {
+        const startOfMonth = new Date(now)
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+        return (timestamp: number) => timestamp >= startOfMonth.getTime()
+      }
+
+      default:
+        return () => true
+    }
+  }
+
+  async function fetchCodexUsage(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const auth = await Auth.get("codex")
+    if (!auth) {
+      throw new Error("Codex authentication is required. Run `arctic auth codex` to connect your account.")
+    }
+
+    const { accessToken, accountId } = await resolveCodexCredentials(auth)
+    const payload = await fetchCodexUsagePayload({
+      baseUrl: resolveCodexBaseUrl(auth),
+      accessToken,
+      accountId,
+    })
+    const rateLimit = payload.rate_limit ?? undefined
+
+    return {
+      planType: payload.plan_type,
+      allowed: rateLimit?.allowed,
+      limitReached: rateLimit?.limit_reached,
+      limits: {
+        primary: mapCodexWindow(rateLimit?.primary_window),
+        secondary: mapCodexWindow(rateLimit?.secondary_window),
+      },
+      credits: mapCredits(payload.credits),
+    }
+  }
+
+  function mapCodexWindow(
+    window: CodexRateLimitWindowSnapshot | null | undefined,
+  ): RateLimitWindowSummary | undefined {
+    if (!window) return undefined
+    return {
+      usedPercent: typeof window.used_percent === "number" ? window.used_percent : null,
+      windowMinutes: window.limit_window_seconds > 0 ? Math.ceil(window.limit_window_seconds / 60) : undefined,
+      resetsAt: typeof window.reset_at === "number" ? window.reset_at : undefined,
+    }
+  }
+
+  function mapCredits(details: CodexCreditsDetails | null | undefined): CreditsSummary | undefined {
+    if (!details) return undefined
+
+    return {
+      hasCredits: details.has_credits,
+      unlimited: details.unlimited,
+      balance: details.balance ?? undefined,
+    }
+  }
+
+  function resolveCodexBaseUrl(auth: Auth.Info): string | undefined {
+    const override =
+      process.env.ARCTIC_CODEX_BASE_URL ?? process.env.CODEX_BASE_URL ?? process.env.CHATGPT_BASE_URL
+    if (override && override.trim().length > 0) {
+      return override
+    }
+    if (auth.type === "oauth" && auth.enterpriseUrl && auth.enterpriseUrl.trim().length > 0) {
+      return auth.enterpriseUrl
+    }
+    return undefined
+  }
+
+  const TOKEN_REFRESH_BUFFER_MS = 60 * 1000
+
+  async function resolveCodexCredentials(auth: Auth.Info): Promise<{ accessToken: string; accountId: string }> {
+    if (auth.type === "codex") {
+      const accessToken = await CodexClient.ensureValidToken()
+      const accountId = resolveAccountId(auth.accountId, auth.idToken ?? accessToken)
+      return { accessToken, accountId }
+    }
+
+    if (auth.type === "oauth") {
+      const accessToken = await ensureOauthAccessToken(auth)
+      const accountId = resolveAccountId(undefined, accessToken)
+      return { accessToken, accountId }
+    }
+
+    throw new Error("Codex authentication is required. Run `arctic auth codex` to connect your account.")
+  }
+
+  async function ensureOauthAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+    let token = auth.access
+    if (!token || auth.expires <= Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      const refreshed = await refreshAccessToken(auth.refresh)
+      if (refreshed.type === "failed") {
+        throw new Error("Failed to refresh Codex token. Run `arctic auth codex` to reconnect your account.")
+      }
+
+      const updated: Extract<Auth.Info, { type: "oauth" }> = {
+        type: "oauth",
+        access: refreshed.access,
+        refresh: refreshed.refresh,
+        expires: refreshed.expires,
+        enterpriseUrl: auth.enterpriseUrl,
+      }
+      await Auth.set("codex", updated)
+      token = refreshed.access
+    }
+    return token
+  }
+
+  function resolveAccountId(accountId: string | undefined, tokenSource: string): string {
+    if (accountId) return accountId
+    const decoded = decodeJWT(tokenSource)
+    const claims = decoded?.[JWT_CLAIM_PATH] as { chatgpt_account_id?: string } | undefined
+    if (claims?.chatgpt_account_id) return claims.chatgpt_account_id
+    throw new Error("Could not determine your ChatGPT account ID. Run `arctic auth codex` to refresh your login.")
+  }
+
+  async function fetchGithubCopilotUsageWrapper(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    // Try to get auth from either github-copilot or github-copilot-enterprise
+    let auth = await Auth.get("github-copilot")
+    if (!auth) {
+      auth = await Auth.get("github-copilot-enterprise")
+    }
+
+    if (!auth) {
+      throw new Error("GitHub authentication is required. Run `arctic auth login` and select GitHub Copilot.")
+    }
+
+    // Support multiple auth types:
+    // - 'oauth': GitHub Copilot's OAuth flow (uses refresh token which is the GitHub OAuth token)
+    // - 'github': Custom GitHub auth type (with token property)
+    // - 'api': API key auth (with key property)
+    let token: string
+    if (auth.type === "oauth") {
+      // For OAuth, use the refresh token (this is the GitHub OAuth access token)
+      token = auth.refresh
+    } else if (auth.type === "github") {
+      token = auth.token
+    } else if (auth.type === "api") {
+      token = auth.key
+    } else {
+      throw new Error("GitHub Copilot requires OAuth, API key, or GitHub token authentication.")
+    }
+
+    const payload = await fetchGithubCopilotUsage({
+      token,
+    })
+
+    // Check if quota_snapshots exists
+    if (!payload.quota_snapshots || typeof payload.quota_snapshots !== "object") {
+      // Return basic info without quota details
+      return {
+        planType: payload.copilot_plan || "Unknown",
+        credits: {
+          hasCredits: payload.chat_enabled || false,
+          unlimited: true,
+        },
+      }
+    }
+
+    // Build quota details from object
+    const quotaEntries = Object.entries(payload.quota_snapshots)
+      .filter(([_, snapshot]) => snapshot !== undefined)
+      .map(([key, snapshot]) => {
+        const quota = snapshot as QuotaSnapshot
+        if (quota.unlimited) {
+          return `${key}: unlimited`
+        }
+        const used = quota.entitlement - quota.remaining
+        return `${key}: ${used.toLocaleString()}/${quota.entitlement.toLocaleString()}`
+      })
+
+    const quotaDetails = quotaEntries.map((entry) => `- ${entry}`).join("\n")
+
+    // Find the most restrictive quota (lowest percent_remaining that's not unlimited)
+    let lowestPercent = 100
+    let primaryQuota: QuotaSnapshot | null = null
+
+    for (const snapshot of Object.values(payload.quota_snapshots)) {
+      if (!snapshot || snapshot.unlimited) continue
+      if (snapshot.percent_remaining < lowestPercent) {
+        lowestPercent = snapshot.percent_remaining
+        primaryQuota = snapshot
+      }
+    }
+
+    // Parse quota reset date
+    let resetsAt: number | undefined
+    if (payload.quota_reset_date_utc || payload.quota_reset_date) {
+      const resetDate = new Date(payload.quota_reset_date_utc || payload.quota_reset_date)
+      resetsAt = Math.floor(resetDate.getTime() / 1000)
+    }
+
+    // Determine if any quota limit is reached
+    const limitReached = primaryQuota !== null && primaryQuota.percent_remaining <= 0
+
+    // Check if all quotas are unlimited
+    const allUnlimited = Object.values(payload.quota_snapshots).every(
+      (snapshot) => !snapshot || snapshot.unlimited
+    )
+
+    return {
+      planType: `${payload.access_type_sku.replace(/_/g, " ")} - ${payload.copilot_plan}\n${quotaDetails}`,
+      allowed: !limitReached,
+      limitReached,
+      limits: primaryQuota ? {
+        primary: {
+          usedPercent: 100 - primaryQuota.percent_remaining,
+          resetsAt,
+        },
+      } : undefined,
+      credits: {
+        hasCredits: true,
+        unlimited: allUnlimited,
+      },
+    }
+  }
+
+  async function fetchGoogleUsage(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const debugFile = path.join(Global.Path.log, "google-usage-debug.log")
+    const logDebug = async (message: string, data?: { [key: string]: unknown }) => {
+      const safe = data ? JSON.stringify(data) : ""
+      const line = `[${new Date().toISOString()}] ${message}${safe ? ` ${safe}` : ""}\n`
+      await fs.appendFile(debugFile, line).catch(() => {})
+    }
+
+    const readResponseBody = async (response: any): Promise<string> => {
+      if (response && typeof response.text === "function") {
+        return await response.text().catch(() => "[read text failed]")
+      }
+      if (response && typeof response.json === "function") {
+        return await response
+          .json()
+          .then((data: unknown) => JSON.stringify(data))
+          .catch(() => "[read json failed]")
+      }
+      return "[no body reader]"
+    }
+
+    const responseMeta = (response: any) => {
+      const headers =
+        response && response.headers && typeof response.headers.entries === "function"
+          ? Object.fromEntries(response.headers.entries())
+          : undefined
+      return {
+        status: response?.status,
+        statusText: response?.statusText,
+        headers,
+        hasText: typeof response?.text === "function",
+        hasJson: typeof response?.json === "function",
+        hasArrayBuffer: typeof response?.arrayBuffer === "function",
+        type: response ? Object.prototype.toString.call(response) : "undefined",
+        ctor: response?.constructor?.name,
+        keys: response ? Object.keys(response) : undefined,
+      }
+    }
+
+    await logDebug("fetchGoogleUsage.start")
+    const auth = await Auth.get("google")
+    if (!auth || auth.type !== "oauth") {
+      await logDebug("auth.missing_or_invalid")
+      throw new Error("Google OAuth authentication is required. Run `arctic auth login` and select Google.")
+    }
+
+    const codeAssistHeaders = {
+      "User-Agent": "google-api-nodejs-client/9.15.1",
+      "X-Goog-Api-Client": "gl-node/22.17.0",
+      "Client-Metadata": "ideType=IDE_UNSPECIFIED,platform=PLATFORM_UNSPECIFIED,pluginType=GEMINI",
+    }
+
+    function parseRefreshParts(refresh: string): { refreshToken: string; projectId?: string; managedProjectId?: string } {
+      const [refreshToken = "", projectId = "", managedProjectId = ""] = (refresh ?? "").split("|")
+      return {
+        refreshToken,
+        projectId: projectId || undefined,
+        managedProjectId: managedProjectId || undefined,
+      }
+    }
+
+    function formatRefreshParts(parts: {
+      refreshToken: string
+      projectId?: string
+      managedProjectId?: string
+    }): string {
+      if (!parts.refreshToken) {
+        return ""
+      }
+      if (!parts.projectId && !parts.managedProjectId) {
+        return parts.refreshToken
+      }
+      const projectSegment = parts.projectId ?? ""
+      const managedSegment = parts.managedProjectId ?? ""
+      return `${parts.refreshToken}|${projectSegment}|${managedSegment}`
+    }
+
+    async function ensureGoogleAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+      const refreshParts = parseRefreshParts(auth.refresh)
+      let token = auth.access
+      if (!token || auth.expires <= Date.now() + 5 * 60 * 1000) {
+        await logDebug("accessToken.refreshing")
+        const client = new OAuth2Client({
+          clientId: "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com",
+          clientSecret: "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",
+        })
+
+        client.setCredentials({
+          refresh_token: refreshParts.refreshToken || auth.refresh,
+          access_token: auth.access,
+          expiry_date: auth.expires,
+        })
+
+        const { token: accessToken } = await client.getAccessToken()
+
+        if (!accessToken) {
+          await logDebug("accessToken.refresh_failed")
+          throw new Error("Failed to refresh Google access token. Re-authenticate with `arctic auth login`.")
+        }
+
+        const updated: Extract<Auth.Info, { type: "oauth" }> = {
+          type: "oauth",
+          access: accessToken,
+          refresh: auth.refresh,
+          expires: auth.expires,
+        }
+        await Auth.set("google", updated)
+        token = accessToken
+        await logDebug("accessToken.refresh_success")
+      }
+      return token
+    }
+
+    async function loadManagedProject(accessToken: string, projectId?: string): Promise<any | null> {
+      const metadata: { [key: string]: string } = {
+        ideType: "IDE_UNSPECIFIED",
+        platform: "PLATFORM_UNSPECIFIED",
+        pluginType: "GEMINI",
+      }
+      if (projectId) {
+        metadata.duetProject = projectId
+      }
+
+      const requestBody: { [key: string]: unknown } = { metadata }
+      if (projectId) {
+        requestBody.cloudaicompanionProject = projectId
+      }
+
+      let response: any
+      try {
+        response = await globalThis.fetch("https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+            ...codeAssistHeaders,
+          },
+          body: JSON.stringify(requestBody),
+        })
+      } catch (error) {
+        await logDebug("loadCodeAssist.error", {
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return null
+      }
+
+      if (!response.ok) {
+        const errorText = await readResponseBody(response)
+        await logDebug("loadCodeAssist.failed", { ...responseMeta(response), body: errorText })
+        return null
+      }
+
+      const payload = await response.json()
+      await logDebug("loadCodeAssist.ok", {
+        hasProject: Boolean(payload?.cloudaicompanionProject),
+        currentTier: payload?.currentTier?.id ?? null,
+      })
+      return payload
+    }
+
+    async function onboardManagedProject(
+      accessToken: string,
+      tierId: string,
+      projectId?: string,
+      attempts = 10,
+      delayMs = 5000,
+    ): Promise<string | undefined> {
+      const metadata: { [key: string]: string } = {
+        ideType: "IDE_UNSPECIFIED",
+        platform: "PLATFORM_UNSPECIFIED",
+        pluginType: "GEMINI",
+      }
+      if (projectId) {
+        metadata.duetProject = projectId
+      }
+
+      const requestBody: { [key: string]: unknown } = {
+        tierId,
+        metadata,
+      }
+
+      if (tierId !== "FREE" && !projectId) {
+        throw new Error("Google Gemini requires a Google Cloud project. Set GOOGLE_CLOUD_PROJECT.")
+      }
+
+      if (projectId) {
+        requestBody.cloudaicompanionProject = projectId
+      }
+
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        let response: any
+        try {
+          response = await globalThis.fetch("https://cloudcode-pa.googleapis.com/v1internal:onboardUser", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+              ...codeAssistHeaders,
+            },
+            body: JSON.stringify(requestBody),
+          })
+        } catch (error) {
+          await logDebug("onboardUser.error", {
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return undefined
+        }
+
+        if (!response.ok) {
+          const errorText = await readResponseBody(response)
+          await logDebug("onboardUser.failed", { ...responseMeta(response), body: errorText })
+          return undefined
+        }
+
+        const payload = await response.json()
+        await logDebug("onboardUser.ok", { done: payload?.done ?? null })
+        const managedProjectId = payload?.response?.cloudaicompanionProject?.id
+        if (payload?.done && managedProjectId) {
+          return managedProjectId
+        }
+        if (payload?.done && projectId) {
+          return projectId
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+      }
+
+      return undefined
+    }
+
+    async function ensureProjectContext(
+      accessToken: string,
+      auth: Extract<Auth.Info, { type: "oauth" }>,
+    ): Promise<string> {
+      const configuredProjectId =
+        process.env.GOOGLE_CLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GCLOUD_PROJECT
+      if (configuredProjectId && configuredProjectId.trim().length > 0) {
+        await logDebug("project.configured", { projectId: configuredProjectId.trim() })
+        return configuredProjectId.trim()
+      }
+
+      const refreshParts = parseRefreshParts(auth.refresh)
+      const projectId = refreshParts.projectId
+      if (projectId || refreshParts.managedProjectId) {
+        await logDebug("project.from_refresh", {
+          projectId: projectId ?? null,
+          managedProjectId: refreshParts.managedProjectId ?? null,
+        })
+        return projectId || refreshParts.managedProjectId || ""
+      }
+
+      const loadPayload = await loadManagedProject(accessToken, projectId)
+      if (loadPayload?.cloudaicompanionProject) {
+        const updated: Extract<Auth.Info, { type: "oauth" }> = {
+          type: "oauth",
+          access: auth.access,
+          refresh: formatRefreshParts({
+            refreshToken: refreshParts.refreshToken || auth.refresh,
+            projectId: refreshParts.projectId,
+            managedProjectId: loadPayload.cloudaicompanionProject,
+          }),
+          expires: auth.expires,
+        }
+        await Auth.set("google", updated)
+        await logDebug("project.from_load", { managedProjectId: loadPayload.cloudaicompanionProject })
+        return loadPayload.cloudaicompanionProject
+      }
+
+      if (!loadPayload) {
+        await logDebug("project.load_failed")
+        throw new Error(
+          "Google Gemini requires a Google Cloud project. Enable Gemini for Google Cloud API and set GOOGLE_CLOUD_PROJECT.",
+        )
+      }
+
+      const currentTierId = loadPayload?.currentTier?.id ?? undefined
+      if (currentTierId && currentTierId !== "FREE") {
+        throw new Error("Google Gemini requires a Google Cloud project for non-free tiers.")
+      }
+
+      const allowedTiers = Array.isArray(loadPayload?.allowedTiers) ? loadPayload.allowedTiers : []
+      let defaultTierId: string | undefined
+      for (const tier of allowedTiers) {
+        if (tier?.isDefault) {
+          defaultTierId = tier.id
+          break
+        }
+      }
+      const tierId = defaultTierId ?? allowedTiers[0]?.id ?? "FREE"
+
+      if (tierId !== "FREE") {
+        await logDebug("project.non_free_tier", { tierId })
+        throw new Error("Google Gemini requires a Google Cloud project for non-free tiers.")
+      }
+
+      const managedProjectId = await onboardManagedProject(accessToken, tierId, projectId)
+      if (managedProjectId) {
+        const updated: Extract<Auth.Info, { type: "oauth" }> = {
+          type: "oauth",
+          access: auth.access,
+          refresh: formatRefreshParts({
+            refreshToken: refreshParts.refreshToken || auth.refresh,
+            projectId: refreshParts.projectId,
+            managedProjectId,
+          }),
+          expires: auth.expires,
+        }
+        await Auth.set("google", updated)
+        await logDebug("project.onboarded", { managedProjectId })
+        return managedProjectId
+      }
+
+      await logDebug("project.onboard_failed")
+      throw new Error(
+        "Google Gemini requires a Google Cloud project. Enable Gemini for Google Cloud API and set GOOGLE_CLOUD_PROJECT.",
+      )
+    }
+
+    const accessToken = await ensureGoogleAccessToken(auth)
+    const projectId = await ensureProjectContext(accessToken, auth)
+    await logDebug("quota.request", { projectId })
+
+    const res = await globalThis.fetch("https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...codeAssistHeaders,
+      },
+      body: JSON.stringify({ project: projectId }),
+    })
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      await logDebug("quota.failed", { status: res.status, body: errorText })
+      throw new Error(`Gemini quota request failed: ${res.status} ${errorText}`)
+    }
+
+    const payload = await res.json()
+    await logDebug("quota.ok", { buckets: Array.isArray(payload?.buckets) ? payload.buckets.length : 0 })
+    const buckets = Array.isArray(payload?.buckets) ? payload.buckets : []
+    if (buckets.length === 0) {
+      return {
+        planType: "Gemini Code Assist",
+      }
+    }
+
+    const quotaEntries = buckets.map((bucket: any) => {
+      const model = bucket.modelId || "Unknown Model"
+      const type = bucket.tokenType || "Unknown Type"
+      const remaining =
+        typeof bucket.remainingFraction === "number"
+          ? `${(bucket.remainingFraction * 100).toFixed(1)}%`
+          : "N/A"
+      return `${model} ${type} ${remaining}`
+    })
+    const quotaDetails = quotaEntries.map((entry: string) => `- ${entry}`).join("\n")
+
+
+    let lowestRemaining = 1
+    let resetTime: string | undefined
+    for (const bucket of buckets) {
+      if (typeof bucket.remainingFraction === "number" && bucket.remainingFraction < lowestRemaining) {
+        lowestRemaining = bucket.remainingFraction
+        resetTime = bucket.resetTime
+      }
+    }
+
+    let resetsAt: number | undefined
+    if (resetTime) {
+      const resetDate = new Date(resetTime)
+      if (!Number.isNaN(resetDate.getTime())) {
+        resetsAt = Math.floor(resetDate.getTime() / 1000)
+      }
+    }
+
+    const usedPercent = Math.max(0, Math.min(100, (1 - lowestRemaining) * 100))
+    const limitReached = lowestRemaining <= 0
+
+    return {
+      planType: `Gemini Code Assist\n${quotaDetails}`,
+      allowed: !limitReached,
+      limitReached,
+      limits: {
+        primary: {
+          usedPercent,
+          resetsAt,
+        },
+      },
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+      },
+    }
+  }
+
+  async function fetchKimiUsage(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const auth = await Auth.get("kimi-for-coding")
+    if (!auth) {
+      throw new Error("Kimi authentication is required. Run `arctic auth login` and select Kimi.")
+    }
+
+    let token: string | undefined
+    if (auth.type === "api") {
+      token = auth.key
+    } else if (auth.type === "oauth") {
+      token = auth.access
+    }
+
+    if (!token) {
+      throw new Error("Kimi authentication token is missing.")
+    }
+
+    const response = await globalThis.fetch("https://api.kimi.com/coding/v1/usages", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+        if (response.status === 401) throw new Error("Authorization failed. Please check your API key.")
+        if (response.status === 404) throw new Error("Usage endpoint not available. Try Kimi For Coding.")
+        throw new Error(`Failed to fetch usage: ${response.statusText}`)
+    }
+
+    const payload = await response.json() as any
+    
+    const usage = payload.usage
+    const limits = Array.isArray(payload.limits) ? payload.limits : []
+
+    const summaryDetails = usage ? formatKimiRow(usage, "Total quota") : undefined
+    const limitDetails = limits.map((l: any, idx: number) => formatKimiRow(l, getKimiLabel(l, idx))).filter(Boolean)
+
+    const allDetails = [summaryDetails, ...limitDetails].filter(Boolean).join("\n")
+
+    let primaryLimit: any = undefined
+    if (usage && usage.limit > 0) {
+        primaryLimit = usage
+    } else if (limits.length > 0) {
+        primaryLimit = limits.find((l: any) => {
+             const detail = l.detail || l
+             return detail.limit && parseInt(detail.limit) > 0
+        })
+    }
+
+    let primary: RateLimitWindowSummary | undefined
+    if (primaryLimit) {
+        const detail = primaryLimit.detail || primaryLimit
+        const limit = parseInt(detail.limit) || 0
+        const usedRaw = parseInt(detail.used)
+        const remainingRaw = parseInt(detail.remaining)
+        const used = !isNaN(usedRaw) ? usedRaw : (limit - (!isNaN(remainingRaw) ? remainingRaw : 0))
+        
+        if (limit > 0) {
+            primary = {
+                usedPercent: (used / limit) * 100,
+                resetsAt: resolveKimiReset(detail)
+            }
+        }
+    }
+
+    return {
+        planType: allDetails || "Kimi for Coding",
+        limits: primary ? { primary } : undefined,
+        credits: {
+            hasCredits: true,
+            unlimited: !primary
+        }
+    }
+  }
+
+  function formatKimiRow(item: any, label: string): string {
+      const detail = item.detail || item
+      const limit = parseInt(detail.limit)
+      const usedRaw = parseInt(detail.used)
+      const remainingRaw = parseInt(detail.remaining)
+      const used = !isNaN(usedRaw) ? usedRaw : (limit - (!isNaN(remainingRaw) ? remainingRaw : 0))
+      
+      if (isNaN(limit) || limit <= 0) return `${label}: ${used?.toLocaleString() ?? "N/A"} used`
+      
+      const resetStr = resolveKimiResetString(detail)
+      return `${label}: ${used.toLocaleString()} / ${limit.toLocaleString()}${resetStr ? ` (${resetStr})` : ""}`
+  }
+
+  function getKimiLabel(item: any, idx: number): string {
+      const detail = item.detail || item
+      const val = item.name || item.title || item.scope || detail.name || detail.title || detail.scope
+      if (val) return String(val)
+      
+      const window = item.window || detail.window || {}
+      const duration = parseInt(window.duration || item.duration || detail.duration)
+      const timeUnit = window.timeUnit || item.timeUnit || detail.timeUnit || ""
+      
+      if (duration) {
+          if (timeUnit.includes("MINUTE")) {
+              if (duration >= 60 && duration % 60 === 0) return `${duration / 60}h limit`
+              return `${duration}m limit`
+          }
+          if (timeUnit.includes("HOUR")) return `${duration}h limit`
+          if (timeUnit.includes("DAY")) return `${duration}d limit`
+          return `${duration}s limit`
+      }
+      return `Limit #${idx + 1}`
+  }
+
+  function resolveKimiReset(data: any): number | undefined {
+      for (const key of ["reset_at", "resetAt", "reset_time", "resetTime"]) {
+          if (data[key]) {
+              const d = new Date(data[key])
+              if (!isNaN(d.getTime())) return Math.floor(d.getTime() / 1000)
+          }
+      }
+      for (const key of ["reset_in", "resetIn", "ttl", "window"]) {
+          const val = parseInt(data[key])
+          if (val) return Math.floor(Date.now() / 1000) + val
+      }
+      return undefined
+  }
+
+  function resolveKimiResetString(data: any): string | undefined {
+      const ts = resolveKimiReset(data)
+      if (!ts) return undefined
+      
+      const diff = ts * 1000 - Date.now()
+      if (diff <= 0) return "reset"
+      
+      const mins = Math.ceil(diff / 60000)
+      if (mins < 60) return `resets in ${mins}m`
+      const hours = Math.ceil(mins / 60)
+      return `resets in ${hours}h`
+  }
+}

@@ -1,0 +1,35 @@
+---
+title: CLI Overview
+description: The essentials of the Arctic CLI.
+---
+
+Arctic is a multi‑provider AI coding CLI. It keeps providers, usage limits, and sessions in one place.
+
+## Quick start
+
+```bash
+arctic
+```
+
+This opens the TUI (terminal UI).
+
+## One‑off prompts
+
+```bash
+arctic run "summarize this repo"
+```
+
+Pipe stdin or attach files:
+
+```bash
+cat README.md | arctic run "rewrite this"
+arctic run -f ./src/index.ts "review this file"
+```
+
+## Where to go next
+
+- Commands: `/docs/cli/commands`
+- Sessions: `/docs/cli/sessions`
+- Usage limits: `/docs/cli/usage`
+- Providers: `/docs/providers`
+- Tools and permissions: `/docs/cli/tools`

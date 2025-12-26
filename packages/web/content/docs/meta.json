@@ -1,0 +1,26 @@
+{
+  "title": "Docs",
+  "pages": [
+    "index",
+    "getting-started",
+    "tui",
+    "cli/index",
+    "cli/commands",
+    "cli/agents",
+    "cli/usage",
+    "cli/sessions",
+    "cli/tools",
+    "cli/permissions",
+    "cli/benchmark",
+    "cli/mcp",
+    "cli/config",
+    "cli/debug",
+    "authentication",
+    "providers",
+    "projects",
+    "snapshots",
+    "plugins",
+    "features",
+    "lore"
+  ]
+}

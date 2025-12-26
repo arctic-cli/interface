@@ -1,0 +1,160 @@
+---
+title: Getting Started
+description: Install Arctic and get running in a few minutes.
+---
+
+## Installation
+
+Arctic is distributed as a standalone binary. Install it using the install script:
+
+```bash
+curl -fsSL https://arcticli.com/install | sh
+```
+
+Or download directly from the releases page:
+
+```
+https://github.com/arctic-cli/cli/releases
+```
+
+### System Requirements
+
+- Linux (x64, ARM64) or macOS (Intel, Apple Silicon)
+- Git (recommended for snapshots)
+- Terminal with 256 color support
+
+## First Run
+
+Launch Arctic:
+
+```bash
+arctic
+```
+
+This opens the TUI (Terminal User Interface). Press `Ctrl+X` then `Q` to exit.
+
+## Authentication (quick)
+
+Start the auth flow:
+
+```bash
+arctic auth login
+```
+
+Choose your provider and follow the browser flow. For API‑key providers, set environment variables (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`).
+
+See [Providers](/docs/providers) for full details.
+
+## Your First Prompt
+
+### Interactive (TUI)
+
+```bash
+arctic
+```
+
+Type your message in the input area and press `Enter`.
+
+### One‑Shot Mode
+
+```bash
+arctic run "summarize this repo"
+```
+
+### Attach Files
+
+```bash
+arctic run -f src/index.ts "review this file"
+```
+
+Or pipe stdin:
+
+```bash
+git diff | arctic run "explain these changes"
+```
+
+## Basic Workflow
+
+1. Start Arctic: `arctic`
+2. Type your prompt and press `Enter`
+3. Review the response
+4. Continue the conversation
+5. Switch models with `Ctrl+X M`
+
+## Key Concepts
+
+### Sessions
+
+Every conversation is a **session**. Sessions are saved and can be resumed:
+
+```bash
+arctic session list
+arctic run --continue
+```
+
+### Projects
+
+Projects are auto‑detected (Git worktree). Sessions are isolated per project.
+
+### Models
+
+Pick a model in the TUI (`Ctrl+X M`) or in CLI:
+
+```bash
+arctic run --model openai/gpt-4o "..."
+```
+
+### Agents
+
+Agents are custom prompts with tool rules:
+
+```bash
+arctic agent create
+```
+
+## Storage Locations
+
+Arctic stores data in standard locations:
+
+- **Config**: `~/.config/arctic/arctic.json`
+- **Auth**: `~/.config/arctic/auth.json`
+- **Sessions**: `~/.local/share/arctic/storage/session/<projectID>/`
+- **Messages/Parts**: `~/.local/share/arctic/storage/message/<sessionID>/` and `~/.local/share/arctic/storage/part/<messageID>/`
+- **Snapshots**: `~/.local/share/arctic/snapshot/`
+
+## Next Steps
+
+<Cards>
+  <Card title="TUI Guide" href="/docs/tui" description="Keyboard‑first workflow" />
+  <Card title="CLI Commands" href="/docs/cli/commands" description="Run prompts and manage sessions" />
+  <Card title="Providers" href="/docs/providers" description="Auth and provider setup" />
+  <Card title="Config" href="/docs/cli/config" description="Customize Arctic" />
+</Cards>
+
+## Troubleshooting
+
+### Authentication Issues
+
+```bash
+arctic auth list
+arctic auth logout
+arctic auth login
+```
+
+### Model Not Found
+
+```bash
+arctic models --refresh
+```
+
+### Debug Mode
+
+```bash
+arctic debug config
+```
+
+## Getting Help
+
+- Docs: arcticli.com/docs
+- Issues: github.com/arctic-cli/cli/issues
+- Discord: discord.gg/arctic

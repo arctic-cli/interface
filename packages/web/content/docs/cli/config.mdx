@@ -1,0 +1,61 @@
+---
+title: Configuration
+description: Customize Arctic with JSON config.
+---
+
+Arctic uses JSON/JSONC config files. Project config overrides global config.
+
+## Where config lives
+
+Global:
+
+```
+~/.config/arctic/arctic.json
+~/.config/arctic/arctic.jsonc
+```
+
+Project:
+
+```
+<project-root>/.arctic/arctic.json
+<project-root>/.arctic/arctic.jsonc
+```
+
+Optional environment overrides:
+
+```bash
+export ARCTIC_CONFIG="/path/to/config.json"
+export ARCTIC_CONFIG_CONTENT='{"model":"openai/gpt-4o"}'
+```
+
+## Minimal example
+
+```jsonc
+{
+  "model": "anthropic/claude-sonnet-4-5",
+  "theme": "dark",
+  "enabled_providers": ["anthropic", "openai"],
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "*": "ask",
+      "git *": "allow"
+    }
+  }
+}
+```
+
+## Common options
+
+- `model`: default model (`provider/model`)
+- `small_model`: lightweight model for titles/aux tasks
+- `theme`: TUI theme
+- `enabled_providers` / `disabled_providers`
+- `agent`: inline agent definitions
+- `command`: inline command templates
+- `tools` / `permission`: tool availability + approvals
+- `mcp`: MCP server configuration
+- `snapshot`: enable/disable snapshots
+- `keybinds`: custom keybindings
+
+For provider config examples, see [Providers](/docs/providers). For permissions, see [Permissions](/docs/cli/permissions).

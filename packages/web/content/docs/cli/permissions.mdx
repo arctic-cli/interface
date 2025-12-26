@@ -1,0 +1,48 @@
+---
+title: Permissions
+description: Control what the model can do.
+---
+
+Permissions control file edits, shell commands, and web access. They can be set globally or per‑agent.
+
+## Permission types
+
+- `edit`
+- `bash` (supports wildcard patterns)
+- `webfetch`
+- `external_directory`
+
+Each can be set to:
+
+- `allow`
+- `ask`
+- `deny`
+
+When prompted, you can allow **once**, **always**, or **reject** for the current session.
+
+## Example (agent)
+
+```md
+---
+permission:
+  edit: ask
+  bash:
+    "*": ask
+  webfetch: deny
+---
+```
+
+## Example (config)
+
+```json
+{
+  "permission": {
+    "edit": "ask",
+    "webfetch": "ask",
+    "bash": {
+      "*": "ask",
+      "git *": "allow"
+    }
+  }
+}
+```
