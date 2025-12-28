@@ -13,7 +13,7 @@ ORANGE='\033[38;5;214m'
 NC='\033[0m' # No Color
 
 requested_version=${VERSION:-}
-requested_tag=${TAG:-}
+requested_tag=${TAG:-beta}
 
 raw_os=$(uname -s)
 os=$(echo "$raw_os" | tr '[:upper:]' '[:lower:]')
@@ -152,13 +152,13 @@ elif [ -n "$requested_version" ]; then
         force_npm_download=true
     fi
 else
-    url="https://github.com/arctic-cli/cli/releases/latest/download/$filename"
-    specific_version=$(curl -s https://api.github.com/repos/arctic-cli/cli/releases/latest | sed -n 's/.*"tag_name": *"v*\([^"]*\)".*/\1/p')
-
-    if [[ $? -ne 0 || -z "$specific_version" ]]; then
-        echo -e "${RED}Failed to fetch version information${NC}"
+    # Default to beta tag
+    specific_version=$(resolve_npm_tag_version "$requested_tag")
+    if [[ -z "$specific_version" ]]; then
+        echo -e "${RED}Failed to resolve npm dist-tag '${requested_tag}' for @arctic-cli/${package_name}.${NC}"
         exit 1
     fi
+    force_npm_download=true
 fi
 
 print_message() {
@@ -441,20 +441,16 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "  
-  ___  ______  _____ _____ _____ _____ 
- / _ \ | ___ \/  __ \_   _|_   _/  __ \
-/ /_\ \| |_/ /| /  \/ | |   | | | /  \/
-|  _  ||    / | |     | |   | | | |    
-| | | || |\ \ | \__/\ | |  _| |_| \__/\
-\_| |_/\_| \_| \____/ \_/  \___/ \____/
-                                       "
+echo -e "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e ""
+echo -e "  ${NC}Arctic CLI installed successfully!${NC}"
 echo -e ""
+echo -e "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e ""
-echo -e "cd <project>  ${MUTED}# Open directory${NC}"
-echo -e "arctic        ${MUTED}# Run command${NC}"
+echo -e "  ${MUTED}Get started:${NC}"
 echo -e ""
-echo -e "${MUTED}For more information visit ${NC}https://arcticli.com/docs"
+echo -e "  cd <project>  ${MUTED}# Open your project${NC}"
+echo -e "  arctic        ${MUTED}# Launch Arctic${NC}"
 echo -e ""
+echo -e "  ${MUTED}Docs: ${NC}https://arcticli.com/docs"
 echo -e ""
