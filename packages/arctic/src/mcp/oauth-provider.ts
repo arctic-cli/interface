@@ -38,7 +38,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
   get clientMetadata(): OAuthClientMetadata {
     return {
       redirect_uris: [this.redirectUrl],
-      client_name: "Arctic CLI",
+      client_name: "Arctic",
       client_uri: "https://arcticli.com",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],

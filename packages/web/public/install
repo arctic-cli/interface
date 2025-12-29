@@ -443,7 +443,7 @@ fi
 echo -e ""
 echo -e "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e ""
-echo -e "  ${NC}Arctic CLI installed successfully!${NC}"
+echo -e "  ${NC}Arctic installed successfully!${NC}"
 echo -e ""
 echo -e "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e ""

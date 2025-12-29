@@ -145,7 +145,7 @@ function formatRemaining(window: RateLimitWindowSummary): string {
     return "usage unknown"
   }
   const percentRemaining = Math.max(0, 100 - window.usedPercent)
-  return `${formatPercent(percentRemaining)} left ${renderProgressBar(percentRemaining)}`
+  return `${formatPercent(percentRemaining)} ${renderProgressBar(percentRemaining)}`
 }
 
 function renderProgressBar(percentRemaining: number): string {

@@ -1,12 +1,12 @@
+import { getSharedHighlighter, registerCustomTheme, ThemeRegistrationResolved } from "@pierre/precision-diffs"
 import { marked } from "marked"
 import markedShiki from "marked-shiki"
 import { bundledLanguages, type BundledLanguage } from "shiki"
 import { createSimpleContext } from "./helper"
-import { getSharedHighlighter, registerCustomTheme, ThemeRegistrationResolved } from "@pierre/precision-diffs"
 
-registerCustomTheme("Arctic CLI", () => {
+registerCustomTheme("Arctic", () => {
   return Promise.resolve({
-    name: "Arctic CLI",
+    name: "Arctic",
     colors: {
       "editor.background": "transparent",
       "editor.foreground": "var(--text-base)",
@@ -380,7 +380,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
     return marked.use(
       markedShiki({
         async highlight(code, lang) {
-          const highlighter = await getSharedHighlighter({ themes: ["Arctic CLI"], langs: [] })
+          const highlighter = await getSharedHighlighter({ themes: ["Arctic"], langs: [] })
           if (!(lang in bundledLanguages)) {
             lang = "text"
           }
@@ -389,7 +389,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
           }
           return highlighter.codeToHtml(code, {
             lang: lang || "text",
-            theme: "Arctic CLI",
+            theme: "Arctic",
             tabindex: false,
           })
         },

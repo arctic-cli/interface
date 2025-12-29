@@ -1,9 +1,9 @@
-import { Hono } from "hono"
-import { DurableObject } from "cloudflare:workers"
-import { randomUUID } from "node:crypto"
-import { jwtVerify, createRemoteJWKSet } from "jose"
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
+import { DurableObject } from "cloudflare:workers"
+import { Hono } from "hono"
+import { createRemoteJWKSet, jwtVerify } from "jose"
+import { randomUUID } from "node:crypto"
 import { Resource } from "sst"
 
 type Env = {
@@ -302,7 +302,7 @@ export default new Hono<{ Bindings: Env }>()
     }
   })
   /**
-   * Used by the arctic CLI to check if the GitHub app is installed
+   * Used by the Arctic to check if the GitHub app is installed
    */
   .get("/get_github_app_installation", async (c) => {
     const owner = c.req.query("owner")

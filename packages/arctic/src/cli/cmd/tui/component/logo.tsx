@@ -93,7 +93,7 @@ function buildLeftColumn(theme: Theme, directory: string, width: number): Column
   lines.push({ text: "Welcome back!", color: theme.primary, bold: true })
   lines.push({ text: "", color: theme.secondary })
   lines.push({ text: "", color: theme.secondary })
-  lines.push({ text: `Arctic CLI v${Installation.VERSION}`, color: theme.secondary })
+  lines.push({ text: `Arctic v${Installation.VERSION}`, color: theme.secondary })
   lines.push({ text: `${Installation.CHANNEL} channel`, color: theme.info })
   lines.push({ text: "", color: theme.secondary })
   lines.push({ text: "Workspace", color: theme.primary, bold: true })

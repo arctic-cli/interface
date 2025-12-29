@@ -61,16 +61,13 @@ export namespace UI {
     const reset = Style.TEXT_NORMAL
 
     const rows: string[] = []
-    rows.push(`${accent}Arctic CLI CLI${reset} ${body}v${Installation.VERSION}${reset}`)
+    rows.push(`${accent}Arctic ${reset} ${body}v${Installation.VERSION}${reset}`)
     rows.push(`${body}${ellipsize(process.cwd(), CONTENT_WIDTH)}${reset}`)
     rows.push(`${accent}Channel${reset} ${body}${Installation.CHANNEL}${reset}`)
     rows.push(`${accent}────────────────────────────────────────────${reset}`)
     rows.push(`${accent}Tips${reset}`)
 
-    const tips = [
-      "Run `arctic init` to create ARCTIC.md instructions.",
-      "Start a new session with `arctic run`.",
-    ]
+    const tips = ["Run `arctic init` to create ARCTIC.md instructions.", "Start a new session with `arctic run`."]
 
     for (const tip of tips) {
       wrapText(tip, CONTENT_WIDTH - 2).forEach((line, index) => {

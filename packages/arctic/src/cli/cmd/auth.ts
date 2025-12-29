@@ -377,6 +377,11 @@ export const AuthLoginCommand = cmd({
           return
         }
 
+        if (provider === "antigravity") {
+          await import("../../auth/antigravity-oauth/cli").then((m) => m.handleAntigravityLogin())
+          return
+        }
+
         if (provider === "arctic") {
           prompts.log.info("Create an api key at https://arcticli.com/auth")
         }

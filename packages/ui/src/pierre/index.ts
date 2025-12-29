@@ -39,7 +39,7 @@ const unsafeCSS = `
 
 export function createDefaultOptions<T>(style: FileDiffOptions<T>["diffStyle"]) {
   return {
-    theme: "Arctic CLI",
+    theme: "Arctic",
     themeType: "system",
     disableLineNumbers: false,
     overflow: "wrap",

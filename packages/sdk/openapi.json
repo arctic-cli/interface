@@ -10,7 +10,7 @@
       "get": {
         "operationId": "global.event",
         "summary": "Get global events",
-        "description": "Subscribe to global events from the Arctic CLI system using server-sent events.",
+        "description": "Subscribe to global events from the Arctic system using server-sent events.",
         "responses": {
           "200": {
             "description": "Event stream",
@@ -35,7 +35,7 @@
       "post": {
         "operationId": "global.dispose",
         "summary": "Dispose instance",
-        "description": "Clean up and dispose all Arctic CLI instances, releasing all resources.",
+        "description": "Clean up and dispose all Arctic instances, releasing all resources.",
         "responses": {
           "200": {
             "description": "Global disposed",
@@ -69,7 +69,7 @@
           }
         ],
         "summary": "List all projects",
-        "description": "Get a list of projects that have been opened with Arctic CLI.",
+        "description": "Get a list of projects that have been opened with Arctic.",
         "responses": {
           "200": {
             "description": "List of projects",
@@ -106,7 +106,7 @@
           }
         ],
         "summary": "Get current project",
-        "description": "Retrieve the currently active project that Arctic CLI is working with.",
+        "description": "Retrieve the currently active project that Arctic is working with.",
         "responses": {
           "200": {
             "description": "Current project information",
@@ -227,7 +227,7 @@
           }
         ],
         "summary": "List PTY sessions",
-        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by Arctic CLI.",
+        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by Arctic.",
         "responses": {
           "200": {
             "description": "List of sessions",
@@ -571,7 +571,7 @@
           }
         ],
         "summary": "Get configuration",
-        "description": "Retrieve the current Arctic CLI configuration settings and preferences.",
+        "description": "Retrieve the current Arctic configuration settings and preferences.",
         "responses": {
           "200": {
             "description": "Get config info",
@@ -603,7 +603,7 @@
           }
         ],
         "summary": "Update configuration",
-        "description": "Update Arctic CLI configuration settings and preferences.",
+        "description": "Update Arctic configuration settings and preferences.",
         "responses": {
           "200": {
             "description": "Successfully updated config",
@@ -760,7 +760,7 @@
           }
         ],
         "summary": "Dispose instance",
-        "description": "Clean up and dispose the current Arctic CLI instance, releasing all resources.",
+        "description": "Clean up and dispose the current Arctic instance, releasing all resources.",
         "responses": {
           "200": {
             "description": "Instance disposed",
@@ -794,7 +794,7 @@
           }
         ],
         "summary": "Get paths",
-        "description": "Retrieve the current working directory and related path information for the Arctic CLI instance.",
+        "description": "Retrieve the current working directory and related path information for the Arctic instance.",
         "responses": {
           "200": {
             "description": "Path",
@@ -862,7 +862,7 @@
           }
         ],
         "summary": "List sessions",
-        "description": "Get a list of all Arctic CLI sessions, sorted by most recently updated.",
+        "description": "Get a list of all Arctic sessions, sorted by most recently updated.",
         "responses": {
           "200": {
             "description": "List of sessions",
@@ -897,7 +897,7 @@
           }
         ],
         "summary": "Create session",
-        "description": "Create a new Arctic CLI session for interacting with AI assistants and managing conversations.",
+        "description": "Create a new Arctic session for interacting with AI assistants and managing conversations.",
         "responses": {
           "200": {
             "description": "Successfully created session",
@@ -1018,7 +1018,7 @@
           }
         ],
         "summary": "Get session",
-        "description": "Retrieve detailed information about a specific Arctic CLI session.",
+        "description": "Retrieve detailed information about a specific Arctic session.",
         "tags": ["Session"],
         "responses": {
           "200": {
@@ -2686,7 +2686,7 @@
           }
         ],
         "summary": "List commands",
-        "description": "Get a list of all available commands in the Arctic CLI system.",
+        "description": "Get a list of all available commands in the Arctic system.",
         "responses": {
           "200": {
             "description": "List of commands",
@@ -3599,7 +3599,7 @@
           }
         ],
         "summary": "List agents",
-        "description": "Get a list of all available AI agents in the Arctic CLI system.",
+        "description": "Get a list of all available AI agents in the Arctic system.",
         "responses": {
           "200": {
             "description": "List of agents",

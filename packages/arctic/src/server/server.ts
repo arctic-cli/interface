@@ -1,55 +1,55 @@
-import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
+import { BusEvent } from "@/bus/bus-event"
 import { GlobalBus } from "@/bus/global"
-import { Log } from "../util/log"
-import { describeRoute, generateSpecs, validator, resolver, openAPIRouteHandler } from "hono-openapi"
-import { Hono } from "hono"
-import { cors } from "hono/cors"
-import { stream, streamSSE } from "hono/streaming"
-import { proxy } from "hono/proxy"
-import { Session } from "../session"
-import z from "zod"
-import { Provider } from "../provider/provider"
-import { ProviderUsage } from "../provider/usage"
-import { filter, mapValues, sortBy, pipe } from "remeda"
+import { TuiEvent } from "@/cli/cmd/tui/event"
+import { Pty } from "@/pty"
+import { SessionBenchmark } from "@/session/benchmark"
+import { BenchmarkSchema } from "@/session/benchmark-schema"
+import { SessionStatus } from "@/session/status"
+import { SessionSummary } from "@/session/summary"
+import { Snapshot } from "@/snapshot"
 import { NamedError } from "@arctic-cli/util/error"
-import { ModelsDev } from "../provider/models"
-import { Ripgrep } from "../file/ripgrep"
-import { Config } from "../config/config"
-import { File } from "../file"
-import { LSP } from "../lsp"
-import { Format } from "../format"
-import { MessageV2 } from "../session/message-v2"
-import { TuiRoute } from "./tui"
-import { Permission } from "../permission"
-import { Instance } from "../project/instance"
-import { Vcs } from "../project/vcs"
+import { Hono } from "hono"
+import { describeRoute, generateSpecs, openAPIRouteHandler, resolver, validator } from "hono-openapi"
+import { upgradeWebSocket, websocket } from "hono/bun"
+import { cors } from "hono/cors"
+import { proxy } from "hono/proxy"
+import { stream, streamSSE } from "hono/streaming"
+import type { ContentfulStatusCode } from "hono/utils/http-status"
+import { filter, mapValues, pipe, sortBy } from "remeda"
+import z from "zod"
+import { zodToJsonSchema } from "zod-to-json-schema"
 import { Agent } from "../agent/agent"
 import { Auth } from "../auth"
 import { Command } from "../command"
-import { ProviderAuth } from "../provider/auth"
+import { Config } from "../config/config"
+import { File } from "../file"
+import { Ripgrep } from "../file/ripgrep"
+import { Format } from "../format"
 import { Global } from "../global"
-import { ProjectRoute } from "./project"
-import { ToolRegistry } from "../tool/registry"
-import { zodToJsonSchema } from "zod-to-json-schema"
-import { SessionPrompt } from "../session/prompt"
-import { SessionCompaction } from "../session/compaction"
-import { SessionRevert } from "../session/revert"
-import { lazy } from "../util/lazy"
-import { Todo } from "../session/todo"
-import { InstanceBootstrap } from "../project/bootstrap"
+import { LSP } from "../lsp"
 import { MCP } from "../mcp"
+import { Permission } from "../permission"
+import { InstanceBootstrap } from "../project/bootstrap"
+import { Instance } from "../project/instance"
+import { Vcs } from "../project/vcs"
+import { ProviderAuth } from "../provider/auth"
+import { ModelsDev } from "../provider/models"
+import { Provider } from "../provider/provider"
+import { ProviderUsage } from "../provider/usage"
+import { Session } from "../session"
+import { SessionCompaction } from "../session/compaction"
+import { MessageV2 } from "../session/message-v2"
+import { SessionPrompt } from "../session/prompt"
+import { SessionRevert } from "../session/revert"
+import { Todo } from "../session/todo"
 import { Storage } from "../storage/storage"
-import type { ContentfulStatusCode } from "hono/utils/http-status"
-import { TuiEvent } from "@/cli/cmd/tui/event"
-import { Snapshot } from "@/snapshot"
-import { SessionSummary } from "@/session/summary"
-import { SessionStatus } from "@/session/status"
-import { SessionBenchmark } from "@/session/benchmark"
-import { BenchmarkSchema } from "@/session/benchmark-schema"
-import { upgradeWebSocket, websocket } from "hono/bun"
+import { ToolRegistry } from "../tool/registry"
+import { lazy } from "../util/lazy"
+import { Log } from "../util/log"
 import { errors } from "./error"
-import { Pty } from "@/pty"
+import { ProjectRoute } from "./project"
+import { TuiRoute } from "./tui"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -103,7 +103,7 @@ export namespace Server {
         "/global/event",
         describeRoute({
           summary: "Get global events",
-          description: "Subscribe to global events from the Arctic CLI system using server-sent events.",
+          description: "Subscribe to global events from the Arctic system using server-sent events.",
           operationId: "global.event",
           responses: {
             200: {
@@ -148,7 +148,7 @@ export namespace Server {
         "/global/dispose",
         describeRoute({
           summary: "Dispose instance",
-          description: "Clean up and dispose all Arctic CLI instances, releasing all resources.",
+          description: "Clean up and dispose all Arctic instances, releasing all resources.",
           operationId: "global.dispose",
           responses: {
             200: {
@@ -204,7 +204,7 @@ export namespace Server {
         "/pty",
         describeRoute({
           summary: "List PTY sessions",
-          description: "Get a list of all active pseudo-terminal (PTY) sessions managed by Arctic CLI.",
+          description: "Get a list of all active pseudo-terminal (PTY) sessions managed by Arctic.",
           operationId: "pty.list",
           responses: {
             200: {
@@ -363,7 +363,7 @@ export namespace Server {
         "/config",
         describeRoute({
           summary: "Get configuration",
-          description: "Retrieve the current Arctic CLI configuration settings and preferences.",
+          description: "Retrieve the current Arctic configuration settings and preferences.",
           operationId: "config.get",
           responses: {
             200: {
@@ -385,7 +385,7 @@ export namespace Server {
         "/config",
         describeRoute({
           summary: "Update configuration",
-          description: "Update Arctic CLI configuration settings and preferences.",
+          description: "Update Arctic configuration settings and preferences.",
           operationId: "config.update",
           responses: {
             200: {
@@ -484,7 +484,7 @@ export namespace Server {
         "/instance/dispose",
         describeRoute({
           summary: "Dispose instance",
-          description: "Clean up and dispose the current Arctic CLI instance, releasing all resources.",
+          description: "Clean up and dispose the current Arctic instance, releasing all resources.",
           operationId: "instance.dispose",
           responses: {
             200: {
@@ -506,7 +506,7 @@ export namespace Server {
         "/path",
         describeRoute({
           summary: "Get paths",
-          description: "Retrieve the current working directory and related path information for the Arctic CLI instance.",
+          description: "Retrieve the current working directory and related path information for the Arctic instance.",
           operationId: "path.get",
           responses: {
             200: {
@@ -569,7 +569,7 @@ export namespace Server {
         "/session",
         describeRoute({
           summary: "List sessions",
-          description: "Get a list of all Arctic CLI sessions, sorted by most recently updated.",
+          description: "Get a list of all Arctic sessions, sorted by most recently updated.",
           operationId: "session.list",
           responses: {
             200: {
@@ -619,7 +619,7 @@ export namespace Server {
         "/session/:sessionID",
         describeRoute({
           summary: "Get session",
-          description: "Retrieve detailed information about a specific Arctic CLI session.",
+          description: "Retrieve detailed information about a specific Arctic session.",
           tags: ["Session"],
           operationId: "session.get",
           responses: {
@@ -712,7 +712,7 @@ export namespace Server {
         "/session",
         describeRoute({
           summary: "Create session",
-          description: "Create a new Arctic CLI session for interacting with AI assistants and managing conversations.",
+          description: "Create a new Arctic session for interacting with AI assistants and managing conversations.",
           operationId: "session.create",
           responses: {
             ...errors(400),
@@ -1514,7 +1514,7 @@ export namespace Server {
         "/command",
         describeRoute({
           summary: "List commands",
-          description: "Get a list of all available commands in the Arctic CLI system.",
+          description: "Get a list of all available commands in the Arctic system.",
           operationId: "command.list",
           responses: {
             200: {
@@ -2019,7 +2019,7 @@ export namespace Server {
         "/agent",
         describeRoute({
           summary: "List agents",
-          description: "Get a list of all available AI agents in the Arctic CLI system.",
+          description: "Get a list of all available AI agents in the Arctic system.",
           operationId: "app.agents",
           responses: {
             200: {

@@ -5,14 +5,15 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useSync } from "@tui/context/sync"
 import { For, Show, createEffect, createMemo, createSignal, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
+import { useRoute } from "../context/route"
 import { useSDK } from "../context/sdk"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
-import { useRoute } from "../context/route"
 
 const BAR_SEGMENTS = 20
 const BAR_FILLED = "█"
 const BAR_EMPTY = "░"
+const MAX_TAB_NAME_LENGTH = 15
 const CODING_PLAN_PROVIDERS = new Set([
   "codex",
   "zai-coding-plan",
@@ -22,6 +23,21 @@ const CODING_PLAN_PROVIDERS = new Set([
   "google",
   "kimi-for-coding",
 ])
+
+function truncateTabName(name: string): string {
+  if (name.length <= MAX_TAB_NAME_LENGTH) {
+    return name
+  }
+  return name.slice(0, MAX_TAB_NAME_LENGTH - 3) + "..."
+}
+
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size))
+  }
+  return chunks
+}
 
 async function fetchUsageRecord(input: {
   baseUrl?: string
@@ -103,7 +119,6 @@ export function DialogUsage() {
       }
       return
     }
-
   })
 
   onMount(() => {
@@ -218,37 +233,37 @@ export function DialogUsage() {
       </box>
 
       {/* Provider Tabs */}
-      <box flexDirection="row" gap={1} paddingBottom={1}>
-        <For each={providerTabs()}>
-          {(providerID) => {
-            const record = () => usageState.records[providerID]
-            const name = () => record()?.providerName ?? providerById()[providerID]?.name ?? providerID
-            return (
-              <box
-                paddingLeft={2}
-                paddingRight={2}
-                paddingTop={0}
-                paddingBottom={0}
-              >
-                <text
-                  attributes={selectedProvider() === providerID ? TextAttributes.BOLD : undefined}
-                  style={{
-                    bg: selectedProvider() === providerID ? "#2563eb" : undefined,
-                    fg: selectedProvider() === providerID ? "#ffffff" : theme.textMuted,
-                  }}
-                >
-                  {name()}
-                </text>
-              </box>
-            )
-          }}
+      <box flexDirection="column" gap={1} paddingBottom={1}>
+        <For each={chunkArray(providerTabs(), 8)}>
+          {(row) => (
+            <box flexDirection="row" gap={1}>
+              <For each={row}>
+                {(providerID) => {
+                  const record = () => usageState.records[providerID]
+                  const name = () =>
+                    truncateTabName(record()?.providerName ?? providerById()[providerID]?.name ?? providerID)
+                  return (
+                    <box paddingLeft={2} paddingRight={2} paddingTop={0} paddingBottom={0} flexShrink={0}>
+                      <text
+                        attributes={selectedProvider() === providerID ? TextAttributes.BOLD : undefined}
+                        style={{
+                          bg: selectedProvider() === providerID ? "#2563eb" : undefined,
+                          fg: selectedProvider() === providerID ? "#ffffff" : theme.textMuted,
+                        }}
+                      >
+                        {name()}
+                      </text>
+                    </box>
+                  )
+                }}
+              </For>
+            </box>
+          )}
         </For>
       </box>
 
       {!selectedProvider() && <text fg={theme.textMuted}>No providers available.</text>}
-      {selectedProvider() && selectedLoading() && !hasEntries() && (
-        <text fg={theme.textMuted}>Loading usage…</text>
-      )}
+      {selectedProvider() && selectedLoading() && !hasEntries() && <text fg={theme.textMuted}>Loading usage…</text>}
       {selectedProvider() && hasEntries() && (
         <scrollbox
           ref={(r: ScrollBoxRenderable) => (scroll = r)}
@@ -398,9 +413,9 @@ function describeCredits(credits: ProviderUsage.CreditsSummary): string {
 function describeLimits(limits: ProviderUsage.Record["limits"]): { label: string; detail: string; reset?: string }[] {
   if (!limits) return []
   const rows: { label: string; detail: string; reset?: string }[] = []
-  const primary = describeLimit("Primary", limits.primary)
+  const primary = describeLimit(limits.primary?.label ?? "Primary", limits.primary)
   if (primary) rows.push(primary)
-  const secondary = describeLimit("Secondary", limits.secondary)
+  const secondary = describeLimit(limits.secondary?.label ?? "Secondary", limits.secondary)
   if (secondary) rows.push(secondary)
   return rows
 }
@@ -411,7 +426,7 @@ function describeLimit(
 ): { label: string; detail: string; reset?: string } | undefined {
   if (!window) return undefined
   const remaining = typeof window.usedPercent === "number" ? Math.max(0, 100 - window.usedPercent) : undefined
-  const detail = remaining === undefined ? "usage unknown" : `${remaining.toFixed(0)}% left ${progressBar(remaining)}`
+  const detail = remaining === undefined ? "usage unknown" : `${remaining.toFixed(0)}% ${progressBar(remaining)}`
   return {
     label,
     detail,

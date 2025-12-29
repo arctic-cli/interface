@@ -910,6 +910,10 @@ export function Prompt(props: PromptProps) {
 
     switch (action) {
       case "start": {
+        // Ensure dialog is clear before starting
+        if (dialog.stack.length > 0) {
+          dialog.clear()
+        }
         if (parent?.benchmark?.type === "parent" && parent.benchmark.enabled) {
           toast.show({
             variant: "warning",
@@ -922,7 +926,10 @@ export function Prompt(props: PromptProps) {
           placeholder: "2",
           value: "2",
         })
-        if (!countInput) return
+        if (!countInput) {
+          setTimeout(() => promptRef.current?.focus(), 1)
+          return
+        }
         const count = Math.max(1, parseInt(countInput, 10))
         if (!Number.isFinite(count) || count <= 0) {
           toast.show({
@@ -936,12 +943,18 @@ export function Prompt(props: PromptProps) {
         const prompts: string[] = []
         for (let i = 0; i < count; i++) {
           const model = await selectModel(i + 1)
-          if (!model) return
+          if (!model) {
+            setTimeout(() => promptRef.current?.focus(), 1)
+            return
+          }
           models.push(model)
           const prompt = await DialogPrompt.show(dialog, `Prompt for slot ${i + 1}`, {
             placeholder: "Leave empty to skip",
           })
-          if (prompt === null) return
+          if (prompt === null) {
+            setTimeout(() => promptRef.current?.focus(), 1)
+            return
+          }
           prompts.push(prompt)
         }
         const duplicates = new Set(models.map((m) => `${m.providerID}/${m.modelID}`)).size !== models.length
@@ -952,7 +965,10 @@ export function Prompt(props: PromptProps) {
             "Duplicate models detected",
             "Some models are repeated across slots. Continue?",
           )
-          if (!confirmed) return
+          if (!confirmed) {
+            setTimeout(() => promptRef.current?.focus(), 1)
+            return
+          }
           allowDuplicates = true
         }
         const result = await sdk.client.session.benchmark.start({

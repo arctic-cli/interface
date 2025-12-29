@@ -11,7 +11,7 @@ export const ProjectRoute = new Hono()
     "/",
     describeRoute({
       summary: "List all projects",
-      description: "Get a list of projects that have been opened with Arctic CLI.",
+      description: "Get a list of projects that have been opened with Arctic.",
       operationId: "project.list",
       responses: {
         200: {
@@ -33,7 +33,7 @@ export const ProjectRoute = new Hono()
     "/current",
     describeRoute({
       summary: "Get current project",
-      description: "Retrieve the currently active project that Arctic CLI is working with.",
+      description: "Retrieve the currently active project that Arctic is working with.",
       operationId: "project.current",
       responses: {
         200: {

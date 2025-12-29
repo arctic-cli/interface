@@ -1,6 +1,6 @@
 {
-  "name": "Arctic CLI",
-  "short_name": "Arctic CLI",
+  "name": "Arctic",
+  "short_name": "Arctic",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

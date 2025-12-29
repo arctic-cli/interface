@@ -143,6 +143,32 @@ export namespace ModelsDev {
     for (const [id, provider] of Object.entries(LOCAL_PROVIDERS)) {
       if (!base[id]) base[id] = provider
     }
+
+    // Add Antigravity provider locally since it's not in models.dev yet
+    if (!base["antigravity"]) {
+      base["antigravity"] = {
+        id: "antigravity",
+        name: "Antigravity",
+        env: [],
+        npm: "@ai-sdk/google", // Uses Google SDK internally
+        models: {
+          // Basic placeholder models - real ones are handled dynamically
+          "gemini-2.0-flash-thinking-exp-01-21": {
+            id: "gemini-2.0-flash-thinking-exp-01-21",
+            name: "Gemini 2.0 Flash Thinking",
+            release_date: "2025-01-21",
+            attachment: true,
+            reasoning: true,
+            temperature: true,
+            tool_call: true,
+            limit: { context: 1_000_000, output: 8192 },
+            cost: { input: 0, output: 0 },
+            options: {},
+          },
+        },
+      }
+    }
+
     return base
   }
 

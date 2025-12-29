@@ -26,7 +26,19 @@ import { Clipboard } from "@tui/util/clipboard"
 import fs from "fs/promises"
 import open from "open"
 import path from "path"
-import { ErrorBoundary, Match, Show, Switch, batch, createEffect, createSignal, on, onMount, untrack } from "solid-js"
+import {
+  ErrorBoundary,
+  Match,
+  Show,
+  Switch,
+  batch,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  untrack,
+} from "solid-js"
 import { PromptHistoryProvider } from "./component/prompt/history"
 import { ArgsProvider, useArgs, type Args } from "./context/args"
 import { ExitProvider, useExit } from "./context/exit"
@@ -102,6 +114,8 @@ export function tui(input: { url: string; args: Args; onExit?: () => Promise<voi
   process.stdout.write("\x1b[>1u")
   // Enable modifyOtherKeys (CSI u) for terminals that support it (e.g., Shift+Enter)
   process.stdout.write("\x1b[>4;2m")
+  // Enable focus tracking to handle terminal tab switches
+  process.stdout.write("\x1b[?1004h")
 
   // promise to prevent immediate exit
   return new Promise<void>(async (resolve) => {
@@ -110,6 +124,8 @@ export function tui(input: { url: string; args: Args; onExit?: () => Promise<voi
       // Restore terminal keyboard mode
       process.stdout.write("\x1b[<u")
       process.stdout.write("\x1b[>4;0m")
+      // Disable focus tracking
+      process.stdout.write("\x1b[?1004l")
       await input.onExit?.()
       resolve()
     }
@@ -191,6 +207,23 @@ function App() {
     renderer.enableKittyKeyboard()
     process.stdout.write("\x1b[>4;1m")
     process.stdout.write("\x1b[>4;2m")
+
+    // Handle terminal focus events (e.g., switching tabs)
+    // Focus-in events trigger a repaint to fix rendering issues
+    const handleStdinData = (data: Buffer) => {
+      const str = data.toString()
+      // Check for focus-in escape sequence (\x1b[I)
+      if (str.includes("\x1b[I")) {
+        renderer.currentRenderBuffer.clear()
+        renderer.requestRender()
+      }
+    }
+
+    process.stdin.on("data", handleStdinData)
+
+    onCleanup(() => {
+      process.stdin.off("data", handleStdinData)
+    })
   })
 
   const debugKeyEvents = process.env["ARCTIC_KEY_DEBUG"] === "1"
@@ -288,14 +321,14 @@ function App() {
   // Update terminal window title based on current route and session
   createEffect(() => {
     if (route.data.type === "home") {
-      renderer.setTerminalTitle("Arctic CLI")
+      renderer.setTerminalTitle("Arctic")
       return
     }
 
     if (route.data.type === "session") {
       const session = sync.session.get(route.data.sessionID)
       if (!session || SessionApi.isDefaultTitle(session.title)) {
-        renderer.setTerminalTitle("Arctic CLI")
+        renderer.setTerminalTitle("Arctic")
         return
       }
 
@@ -609,7 +642,7 @@ function App() {
     toast.show({
       variant: "success",
       title: "Update Complete",
-      message: `Arctic CLI updated to v${evt.properties.version}`,
+      message: `Arctic updated to v${evt.properties.version}`,
       duration: 5000,
     })
   })
@@ -618,7 +651,7 @@ function App() {
     toast.show({
       variant: "info",
       title: "Update Available",
-      message: `Arctic CLI v${evt.properties.version} is available. Run 'arctic upgrade' to update manually.`,
+      message: `Arctic v${evt.properties.version} is available. Run 'arctic upgrade' to update manually.`,
       duration: 10000,
     })
   })

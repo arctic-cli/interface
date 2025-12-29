@@ -6,17 +6,10 @@ import { OAuth2Client } from "google-auth-library"
 import { Global } from "@/global"
 import fs from "fs/promises"
 import path from "path"
-import {
-  fetchCodexUsagePayload,
-} from "@/provider/codex-backend"
-import type {
-  CodexCreditsDetails,
-  CodexRateLimitWindowSnapshot,
-} from "@/provider/codex-backend"
-import {
-  fetchGithubCopilotUsage,
-  type QuotaSnapshot,
-} from "@/provider/github-copilot-backend"
+import { fetchCodexUsagePayload } from "@/provider/codex-backend"
+import type { CodexCreditsDetails, CodexRateLimitWindowSnapshot } from "@/provider/codex-backend"
+import { fetchGithubCopilotUsage, type QuotaSnapshot } from "@/provider/github-copilot-backend"
+import { fetchAntigravityModels, type AntigravityModelQuota } from "@/provider/antigravity-backend"
 import { Provider } from "./provider"
 import { Pricing } from "./pricing"
 import z from "zod"
@@ -30,6 +23,7 @@ export namespace ProviderUsage {
     usedPercent: z.number().nullable(),
     windowMinutes: z.number().nullable().optional(),
     resetsAt: z.number().nullable().optional(),
+    label: z.string().optional(),
   })
   export type RateLimitWindowSummary = z.infer<typeof RateLimitWindowSummary>
 
@@ -64,10 +58,12 @@ export namespace ProviderUsage {
     planType: z.string().optional(),
     allowed: z.boolean().optional(),
     limitReached: z.boolean().optional(),
-    limits: z.object({
-      primary: RateLimitWindowSummary.optional(),
-      secondary: RateLimitWindowSummary.optional(),
-    }).optional(),
+    limits: z
+      .object({
+        primary: RateLimitWindowSummary.optional(),
+        secondary: RateLimitWindowSummary.optional(),
+      })
+      .optional(),
     credits: CreditsSummary.optional(),
     tokenUsage: TokenUsage.optional(),
     costSummary: CostSummary.optional(),
@@ -92,6 +88,7 @@ export namespace ProviderUsage {
     "github-copilot": fetchGithubCopilotUsageWrapper,
     google: fetchGoogleUsage,
     "kimi-for-coding": fetchKimiUsage,
+    antigravity: fetchAntigravityUsage,
   }
 
   export async function fetch(
@@ -100,9 +97,8 @@ export namespace ProviderUsage {
   ): Promise<Record[]> {
     const providers = await Provider.list()
     const normalizedTargets = normalizeTargetProviders(targetProviders)
-    const providerIDs = (normalizedTargets && normalizedTargets.length > 0
-      ? normalizedTargets
-      : Object.keys(usageFetchers)
+    const providerIDs = (
+      normalizedTargets && normalizedTargets.length > 0 ? normalizedTargets : Object.keys(usageFetchers)
     ).filter((id) => id in providers)
 
     const timestamp = Date.now()
@@ -169,12 +165,14 @@ export namespace ProviderUsage {
     let found = false
     let inspectedMessages = 0
     let modelID: string | undefined
-    let limitSummary: {
-      planType?: string
-      allowed?: boolean
-      limitReached?: boolean
-      limits?: { primary?: RateLimitWindowSummary }
-    } | undefined
+    let limitSummary:
+      | {
+          planType?: string
+          allowed?: boolean
+          limitReached?: boolean
+          limits?: { primary?: RateLimitWindowSummary }
+        }
+      | undefined
     let limitError: string | undefined
 
     // For session mode, require sessionID
@@ -289,9 +287,7 @@ export namespace ProviderUsage {
   const ZAI_USAGE_LIMITS_URL = "https://api.z.ai/api/monitor/usage/quota/limit"
   const ANTHROPIC_OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 
-  async function fetchZaiUsageLimits(
-    provider: Provider.Info,
-  ): Promise<{
+  async function fetchZaiUsageLimits(provider: Provider.Info): Promise<{
     planType?: string
     allowed?: boolean
     limitReached?: boolean
@@ -372,6 +368,7 @@ export namespace ProviderUsage {
         ? {
             primary: {
               usedPercent: primary.usedPercent,
+              label: "Quota",
             },
           }
         : undefined,
@@ -474,15 +471,14 @@ export namespace ProviderUsage {
     const fiveHour = payload.five_hour
     const sevenDay = payload.seven_day
 
-    const rows = [
-      formatAnthropicUsageRow("5-hour", fiveHour),
-      formatAnthropicUsageRow("7-day", sevenDay),
-    ].filter((row): row is string => Boolean(row))
+    const rows = [formatAnthropicUsageRow("5-hour", fiveHour), formatAnthropicUsageRow("7-day", sevenDay)].filter(
+      (row): row is string => Boolean(row),
+    )
 
     const planType = rows.length > 0 ? `Claude subscription\n${rows.map((row) => `- ${row}`).join("\n")}` : undefined
 
-    const primary = resolveAnthropicLimit(fiveHour)
-    const secondary = resolveAnthropicLimit(sevenDay)
+    const primary = resolveAnthropicLimit(fiveHour, "5h")
+    const secondary = resolveAnthropicLimit(sevenDay, "Weekly")
 
     const limitReached = [primary?.usedPercent, secondary?.usedPercent].some(
       (value) => typeof value === "number" && value >= 100,
@@ -499,7 +495,7 @@ export namespace ProviderUsage {
     }
   }
 
-  function resolveAnthropicLimit(data: any): RateLimitWindowSummary | undefined {
+  function resolveAnthropicLimit(data: any, label?: string): RateLimitWindowSummary | undefined {
     if (!data || typeof data !== "object") return undefined
     const utilization = typeof data.utilization === "number" ? data.utilization : undefined
     const resetsAt = resolveAnthropicReset(data.resets_at)
@@ -507,6 +503,7 @@ export namespace ProviderUsage {
     return {
       usedPercent: utilization ?? null,
       resetsAt,
+      label,
     }
   }
 
@@ -598,8 +595,8 @@ export namespace ProviderUsage {
       allowed: rateLimit?.allowed,
       limitReached: rateLimit?.limit_reached,
       limits: {
-        primary: mapCodexWindow(rateLimit?.primary_window),
-        secondary: mapCodexWindow(rateLimit?.secondary_window),
+        primary: mapCodexWindow(rateLimit?.primary_window, "5h"),
+        secondary: mapCodexWindow(rateLimit?.secondary_window, "Weekly"),
       },
       credits: mapCredits(payload.credits),
     }
@@ -607,12 +604,14 @@ export namespace ProviderUsage {
 
   function mapCodexWindow(
     window: CodexRateLimitWindowSnapshot | null | undefined,
+    label?: string,
   ): RateLimitWindowSummary | undefined {
     if (!window) return undefined
     return {
       usedPercent: typeof window.used_percent === "number" ? window.used_percent : null,
       windowMinutes: window.limit_window_seconds > 0 ? Math.ceil(window.limit_window_seconds / 60) : undefined,
       resetsAt: typeof window.reset_at === "number" ? window.reset_at : undefined,
+      label,
     }
   }
 
@@ -627,8 +626,7 @@ export namespace ProviderUsage {
   }
 
   function resolveCodexBaseUrl(auth: Auth.Info): string | undefined {
-    const override =
-      process.env.ARCTIC_CODEX_BASE_URL ?? process.env.CODEX_BASE_URL ?? process.env.CHATGPT_BASE_URL
+    const override = process.env.ARCTIC_CODEX_BASE_URL ?? process.env.CODEX_BASE_URL ?? process.env.CHATGPT_BASE_URL
     if (override && override.trim().length > 0) {
       return override
     }
@@ -765,20 +763,21 @@ export namespace ProviderUsage {
     const limitReached = primaryQuota !== null && primaryQuota.percent_remaining <= 0
 
     // Check if all quotas are unlimited
-    const allUnlimited = Object.values(payload.quota_snapshots).every(
-      (snapshot) => !snapshot || snapshot.unlimited
-    )
+    const allUnlimited = Object.values(payload.quota_snapshots).every((snapshot) => !snapshot || snapshot.unlimited)
 
     return {
       planType: `${payload.access_type_sku.replace(/_/g, " ")} - ${payload.copilot_plan}\n${quotaDetails}`,
       allowed: !limitReached,
       limitReached,
-      limits: primaryQuota ? {
-        primary: {
-          usedPercent: 100 - primaryQuota.percent_remaining,
-          resetsAt,
-        },
-      } : undefined,
+      limits: primaryQuota
+        ? {
+            primary: {
+              usedPercent: 100 - primaryQuota.percent_remaining,
+              resetsAt,
+              label: "Monthly",
+            },
+          }
+        : undefined,
       credits: {
         hasCredits: true,
         unlimited: allUnlimited,
@@ -838,7 +837,11 @@ export namespace ProviderUsage {
       "Client-Metadata": "ideType=IDE_UNSPECIFIED,platform=PLATFORM_UNSPECIFIED,pluginType=GEMINI",
     }
 
-    function parseRefreshParts(refresh: string): { refreshToken: string; projectId?: string; managedProjectId?: string } {
+    function parseRefreshParts(refresh: string): {
+      refreshToken: string
+      projectId?: string
+      managedProjectId?: string
+    } {
       const [refreshToken = "", projectId = "", managedProjectId = ""] = (refresh ?? "").split("|")
       return {
         refreshToken,
@@ -1137,13 +1140,10 @@ export namespace ProviderUsage {
       const model = bucket.modelId || "Unknown Model"
       const type = bucket.tokenType || "Unknown Type"
       const remaining =
-        typeof bucket.remainingFraction === "number"
-          ? `${(bucket.remainingFraction * 100).toFixed(1)}%`
-          : "N/A"
+        typeof bucket.remainingFraction === "number" ? `${(bucket.remainingFraction * 100).toFixed(1)}%` : "N/A"
       return `${model} ${type} ${remaining}`
     })
     const quotaDetails = quotaEntries.map((entry: string) => `- ${entry}`).join("\n")
-
 
     let lowestRemaining = 1
     let resetTime: string | undefined
@@ -1173,6 +1173,7 @@ export namespace ProviderUsage {
         primary: {
           usedPercent,
           resetsAt,
+          label: "Daily",
         },
       },
       credits: {
@@ -1201,18 +1202,18 @@ export namespace ProviderUsage {
 
     const response = await globalThis.fetch("https://api.kimi.com/coding/v1/usages", {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     })
 
     if (!response.ok) {
-        if (response.status === 401) throw new Error("Authorization failed. Please check your API key.")
-        if (response.status === 404) throw new Error("Usage endpoint not available. Try Kimi For Coding.")
-        throw new Error(`Failed to fetch usage: ${response.statusText}`)
+      if (response.status === 401) throw new Error("Authorization failed. Please check your API key.")
+      if (response.status === 404) throw new Error("Usage endpoint not available. Try Kimi For Coding.")
+      throw new Error(`Failed to fetch usage: ${response.statusText}`)
     }
 
-    const payload = await response.json() as any
-    
+    const payload = (await response.json()) as any
+
     const usage = payload.usage
     const limits = Array.isArray(payload.limits) ? payload.limits : []
 
@@ -1223,103 +1224,213 @@ export namespace ProviderUsage {
 
     let primaryLimit: any = undefined
     if (usage && usage.limit > 0) {
-        primaryLimit = usage
+      primaryLimit = usage
     } else if (limits.length > 0) {
-        primaryLimit = limits.find((l: any) => {
-             const detail = l.detail || l
-             return detail.limit && parseInt(detail.limit) > 0
-        })
+      primaryLimit = limits.find((l: any) => {
+        const detail = l.detail || l
+        return detail.limit && parseInt(detail.limit) > 0
+      })
     }
 
     let primary: RateLimitWindowSummary | undefined
     if (primaryLimit) {
-        const detail = primaryLimit.detail || primaryLimit
-        const limit = parseInt(detail.limit) || 0
-        const usedRaw = parseInt(detail.used)
-        const remainingRaw = parseInt(detail.remaining)
-        const used = !isNaN(usedRaw) ? usedRaw : (limit - (!isNaN(remainingRaw) ? remainingRaw : 0))
-        
-        if (limit > 0) {
-            primary = {
-                usedPercent: (used / limit) * 100,
-                resetsAt: resolveKimiReset(detail)
-            }
+      const detail = primaryLimit.detail || primaryLimit
+      const limit = parseInt(detail.limit) || 0
+      const usedRaw = parseInt(detail.used)
+      const remainingRaw = parseInt(detail.remaining)
+      const used = !isNaN(usedRaw) ? usedRaw : limit - (!isNaN(remainingRaw) ? remainingRaw : 0)
+
+      if (limit > 0) {
+        primary = {
+          usedPercent: (used / limit) * 100,
+          resetsAt: resolveKimiReset(detail),
         }
+      }
     }
 
     return {
-        planType: allDetails || "Kimi for Coding",
-        limits: primary ? { primary } : undefined,
-        credits: {
-            hasCredits: true,
-            unlimited: !primary
-        }
+      planType: allDetails || "Kimi for Coding",
+      limits: primary ? { primary } : undefined,
+      credits: {
+        hasCredits: true,
+        unlimited: !primary,
+      },
     }
   }
 
   function formatKimiRow(item: any, label: string): string {
-      const detail = item.detail || item
-      const limit = parseInt(detail.limit)
-      const usedRaw = parseInt(detail.used)
-      const remainingRaw = parseInt(detail.remaining)
-      const used = !isNaN(usedRaw) ? usedRaw : (limit - (!isNaN(remainingRaw) ? remainingRaw : 0))
-      
-      if (isNaN(limit) || limit <= 0) return `${label}: ${used?.toLocaleString() ?? "N/A"} used`
-      
-      const resetStr = resolveKimiResetString(detail)
-      return `${label}: ${used.toLocaleString()} / ${limit.toLocaleString()}${resetStr ? ` (${resetStr})` : ""}`
+    const detail = item.detail || item
+    const limit = parseInt(detail.limit)
+    const usedRaw = parseInt(detail.used)
+    const remainingRaw = parseInt(detail.remaining)
+    const used = !isNaN(usedRaw) ? usedRaw : limit - (!isNaN(remainingRaw) ? remainingRaw : 0)
+
+    if (isNaN(limit) || limit <= 0) return `${label}: ${used?.toLocaleString() ?? "N/A"} used`
+
+    const resetStr = resolveKimiResetString(detail)
+    return `${label}: ${used.toLocaleString()} / ${limit.toLocaleString()}${resetStr ? ` (${resetStr})` : ""}`
   }
 
   function getKimiLabel(item: any, idx: number): string {
-      const detail = item.detail || item
-      const val = item.name || item.title || item.scope || detail.name || detail.title || detail.scope
-      if (val) return String(val)
-      
-      const window = item.window || detail.window || {}
-      const duration = parseInt(window.duration || item.duration || detail.duration)
-      const timeUnit = window.timeUnit || item.timeUnit || detail.timeUnit || ""
-      
-      if (duration) {
-          if (timeUnit.includes("MINUTE")) {
-              if (duration >= 60 && duration % 60 === 0) return `${duration / 60}h limit`
-              return `${duration}m limit`
-          }
-          if (timeUnit.includes("HOUR")) return `${duration}h limit`
-          if (timeUnit.includes("DAY")) return `${duration}d limit`
-          return `${duration}s limit`
+    const detail = item.detail || item
+    const val = item.name || item.title || item.scope || detail.name || detail.title || detail.scope
+    if (val) return String(val)
+
+    const window = item.window || detail.window || {}
+    const duration = parseInt(window.duration || item.duration || detail.duration)
+    const timeUnit = window.timeUnit || item.timeUnit || detail.timeUnit || ""
+
+    if (duration) {
+      if (timeUnit.includes("MINUTE")) {
+        if (duration >= 60 && duration % 60 === 0) return `${duration / 60}h limit`
+        return `${duration}m limit`
       }
-      return `Limit #${idx + 1}`
+      if (timeUnit.includes("HOUR")) return `${duration}h limit`
+      if (timeUnit.includes("DAY")) return `${duration}d limit`
+      return `${duration}s limit`
+    }
+    return `Limit #${idx + 1}`
   }
 
   function resolveKimiReset(data: any): number | undefined {
-      for (const key of ["reset_at", "resetAt", "reset_time", "resetTime"]) {
-          if (data[key]) {
-              const d = new Date(data[key])
-              if (!isNaN(d.getTime())) return Math.floor(d.getTime() / 1000)
-          }
+    for (const key of ["reset_at", "resetAt", "reset_time", "resetTime"]) {
+      if (data[key]) {
+        const d = new Date(data[key])
+        if (!isNaN(d.getTime())) return Math.floor(d.getTime() / 1000)
       }
-      for (const key of ["reset_in", "resetIn", "ttl", "window"]) {
-          const val = parseInt(data[key])
-          if (val) return Math.floor(Date.now() / 1000) + val
-      }
-      return undefined
+    }
+    for (const key of ["reset_in", "resetIn", "ttl", "window"]) {
+      const val = parseInt(data[key])
+      if (val) return Math.floor(Date.now() / 1000) + val
+    }
+    return undefined
   }
 
   function resolveKimiResetString(data: any): string | undefined {
-      const ts = resolveKimiReset(data)
-      if (!ts) return undefined
+    const ts = resolveKimiReset(data)
+    if (!ts) return undefined
 
-      const diff = ts * 1000 - Date.now()
-      if (diff <= 0) return "resetting soon"
+    const diff = ts * 1000 - Date.now()
+    if (diff <= 0) return "resetting soon"
 
-      const totalMinutes = Math.floor(diff / 60000)
-      const hours = Math.floor(totalMinutes / 60)
-      const minutes = totalMinutes % 60
-      const days = Math.floor(hours / 24)
-      const hoursInDay = hours % 24
+    const totalMinutes = Math.floor(diff / 60000)
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    const days = Math.floor(hours / 24)
+    const hoursInDay = hours % 24
 
-      if (days > 0) return `${days}d ${hoursInDay}h left`
-      if (hours > 0) return `${hours}h ${minutes}m left`
-      return `${minutes}m left`
+    if (days > 0) return `${days}d ${hoursInDay}h left`
+    if (hours > 0) return `${hours}h ${minutes}m left`
+    return `${minutes}m left`
+  }
+
+  async function ensureAntigravityAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+    const needsRefresh = !auth.access || !auth.expires || auth.expires <= Date.now() + 5 * 60 * 1000
+
+    if (needsRefresh) {
+      const { ensureValidToken } = await import("@/auth/antigravity-oauth/token")
+      const refreshed = await ensureValidToken(auth as any)
+      const token = refreshed.access
+      if (!token) {
+        throw new Error("Failed to get valid Antigravity access token after refresh.")
+      }
+      return token
+    }
+
+    if (!auth.access) {
+      throw new Error("No Antigravity access token available. Run `arctic auth login` to authenticate.")
+    }
+
+    return auth.access
+  }
+
+  async function fetchAntigravityUsage(input: {
+    provider: Provider.Info
+    sessionID?: string
+    timePeriod?: TimePeriod
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const auth = await Auth.get("antigravity")
+    if (!auth || auth.type !== "oauth") {
+      throw new Error("Antigravity OAuth authentication is required. Run `arctic auth login` and select Antigravity.")
+    }
+
+    const accessToken = await ensureAntigravityAccessToken(auth)
+
+    // Fetch quota information from Antigravity API
+    const quotas = await fetchAntigravityModels(accessToken)
+
+    if (quotas.length === 0) {
+      return {
+        planType: "Antigravity (No quota information available)",
+        credits: {
+          hasCredits: true,
+          unlimited: true,
+        },
+      }
+    }
+
+    // Find the model with the lowest remaining fraction (most constrained)
+    let lowestRemaining = 1.0
+    let resetTime: string | null = null
+
+    for (const quota of quotas) {
+      const remaining = quota.remainingFraction ?? 1.0
+      if (remaining < lowestRemaining) {
+        lowestRemaining = remaining
+        resetTime = quota.resetTime
+      }
+    }
+
+    // Format quota details for display
+    const quotaEntries = quotas
+      .map((quota) => {
+        const percent = quota.remainingFraction !== null ? Math.round(quota.remainingFraction * 100) : "N/A"
+        return `${quota.displayName}: ${percent}% remaining`
+      })
+      .slice(0, 10) // Limit to first 10 models to avoid clutter
+
+    const quotaDetails = quotaEntries.map((entry) => `- ${entry}`).join("\n")
+    const planType = `Antigravity\n${quotaDetails}`
+
+    // Parse reset time if available
+    let resetsAt: number | undefined
+    if (resetTime) {
+      const resetDate = new Date(resetTime)
+      if (!Number.isNaN(resetDate.getTime())) {
+        resetsAt = Math.floor(resetDate.getTime() / 1000)
+      }
+    }
+
+    const usedPercent = Math.max(0, Math.min(100, (1 - lowestRemaining) * 100))
+    const limitReached = lowestRemaining <= 0
+
+    // Also fetch session-based token usage if sessionID is provided
+    let tokenUsage: TokenUsage | undefined
+    let costSummary: CostSummary | undefined
+
+    if (input.sessionID) {
+      const sessionData = await fetchSessionUsage(input)
+      tokenUsage = sessionData.tokenUsage
+      costSummary = sessionData.costSummary
+    }
+
+    return {
+      planType,
+      allowed: !limitReached,
+      limitReached,
+      limits: {
+        primary: {
+          usedPercent,
+          resetsAt,
+          label: "Daily",
+        },
+      },
+      credits: {
+        hasCredits: true,
+        unlimited: false,
+      },
+      tokenUsage,
+      costSummary,
+    }
   }
 }

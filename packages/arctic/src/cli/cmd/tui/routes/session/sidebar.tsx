@@ -558,9 +558,9 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
                       </Show>
                       <Show when={usageData()?.limits?.primary}>
                         <text fg={theme.textMuted}>
-                          {currentProvider() === "codex" ? "5h cycle" : "Primary"}: {usageData()!.limits!.primary!.usedPercent?.toFixed(0) ?? 0}% {usageBar(
-                            usageData()!.limits!.primary!.usedPercent,
-                          )}
+                          {currentProvider() === "codex" ? "5h cycle" : "Primary"}:{" "}
+                          {(100 - (usageData()!.limits!.primary!.usedPercent ?? 0)).toFixed(0)}%{" "}
+                          {usageBar(100 - (usageData()!.limits!.primary!.usedPercent ?? 0))}
                         </text>
                         <Show when={usageData()!.limits!.primary!.resetsAt}>
                           <text fg={theme.textMuted}>
@@ -570,9 +570,9 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
                       </Show>
                       <Show when={usageData()?.limits?.secondary}>
                         <text fg={theme.textMuted}>
-                          {currentProvider() === "codex" ? "Weekly cycle" : "Secondary"}: {usageData()!.limits!.secondary!.usedPercent?.toFixed(0) ?? 0}% {usageBar(
-                            usageData()!.limits!.secondary!.usedPercent,
-                          )}
+                          {currentProvider() === "codex" ? "Weekly cycle" : "Secondary"}:{" "}
+                          {(100 - (usageData()!.limits!.secondary!.usedPercent ?? 0)).toFixed(0)}%{" "}
+                          {usageBar(100 - (usageData()!.limits!.secondary!.usedPercent ?? 0))}
                         </text>
                         <Show when={usageData()!.limits!.secondary!.resetsAt}>
                           <text fg={theme.textMuted}>
@@ -614,7 +614,7 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
                 <text fg={theme.text}>
                   <b>Getting started</b>
                 </text>
-                <text fg={theme.textMuted}>Arctic CLI includes free models so you can start immediately.</text>
+                <text fg={theme.textMuted}>Arctic includes free models so you can start immediately.</text>
                 <text fg={theme.textMuted}>
                   Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
                 </text>

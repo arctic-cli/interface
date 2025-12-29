@@ -11,12 +11,13 @@ import type { ProviderAuthAuthorization } from "@arctic-cli/sdk/v2"
 import { DialogModel } from "./dialog-model"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
+  arctic: 0,
   anthropic: 1,
   "github-copilot": 2,
   openai: 3,
   google: 4,
+  antigravity: 5,
   openrouter: 5,
-  antigravity: 6,
   codex: 7,
 }
 

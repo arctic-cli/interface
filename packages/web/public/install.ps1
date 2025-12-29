@@ -1,4 +1,4 @@
-# Arctic CLI PowerShell Installer for Windows
+# Arctic PowerShell Installer for Windows
 # Usage: irm https://arcticli.com/install.ps1 | iex
 
 $ErrorActionPreference = 'Stop'
@@ -174,7 +174,7 @@ if ($UserPath -notlike "*$InstallDir*") {
 Write-Host ""
 Write-Host "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 Write-Host ""
-Write-Host "  ${NC}Arctic CLI installed successfully!${NC}"
+Write-Host "  ${NC}Arctic installed successfully!${NC}"
 Write-Host ""
 Write-Host "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 Write-Host ""

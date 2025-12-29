@@ -192,7 +192,7 @@ export class Global extends HeyApiClient {
   /**
    * Get global events
    *
-   * Subscribe to global events from the Arctic CLI system using server-sent events.
+   * Subscribe to global events from the Arctic system using server-sent events.
    */
   public event<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).sse.get<GlobalEventResponses, unknown, ThrowOnError>({
@@ -204,7 +204,7 @@ export class Global extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose all Arctic CLI instances, releasing all resources.
+   * Clean up and dispose all Arctic instances, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).post<GlobalDisposeResponses, unknown, ThrowOnError>({
@@ -218,7 +218,7 @@ export class Project extends HeyApiClient {
   /**
    * List all projects
    *
-   * Get a list of projects that have been opened with Arctic CLI.
+   * Get a list of projects that have been opened with Arctic.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -237,7 +237,7 @@ export class Project extends HeyApiClient {
   /**
    * Get current project
    *
-   * Retrieve the currently active project that Arctic CLI is working with.
+   * Retrieve the currently active project that Arctic is working with.
    */
   public current<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -300,7 +300,7 @@ export class Pty extends HeyApiClient {
   /**
    * List PTY sessions
    *
-   * Get a list of all active pseudo-terminal (PTY) sessions managed by Arctic CLI.
+   * Get a list of all active pseudo-terminal (PTY) sessions managed by Arctic.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -498,7 +498,7 @@ export class Config extends HeyApiClient {
   /**
    * Get configuration
    *
-   * Retrieve the current Arctic CLI configuration settings and preferences.
+   * Retrieve the current Arctic configuration settings and preferences.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -517,7 +517,7 @@ export class Config extends HeyApiClient {
   /**
    * Update configuration
    *
-   * Update Arctic CLI configuration settings and preferences.
+   * Update Arctic configuration settings and preferences.
    */
   public update<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -626,7 +626,7 @@ export class Instance extends HeyApiClient {
   /**
    * Dispose instance
    *
-   * Clean up and dispose the current Arctic CLI instance, releasing all resources.
+   * Clean up and dispose the current Arctic instance, releasing all resources.
    */
   public dispose<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -647,7 +647,7 @@ export class Path extends HeyApiClient {
   /**
    * Get paths
    *
-   * Retrieve the current working directory and related path information for the Arctic CLI instance.
+   * Retrieve the current working directory and related path information for the Arctic instance.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -854,7 +854,7 @@ export class Session extends HeyApiClient {
   /**
    * List sessions
    *
-   * Get a list of all Arctic CLI sessions, sorted by most recently updated.
+   * Get a list of all Arctic sessions, sorted by most recently updated.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -873,7 +873,7 @@ export class Session extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a new Arctic CLI session for interacting with AI assistants and managing conversations.
+   * Create a new Arctic session for interacting with AI assistants and managing conversations.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -959,7 +959,7 @@ export class Session extends HeyApiClient {
   /**
    * Get session
    *
-   * Retrieve detailed information about a specific Arctic CLI session.
+   * Retrieve detailed information about a specific Arctic session.
    */
   public get<ThrowOnError extends boolean = false>(
     parameters: {
@@ -1690,7 +1690,7 @@ export class Command extends HeyApiClient {
   /**
    * List commands
    *
-   * Get a list of all available commands in the Arctic CLI system.
+   * Get a list of all available commands in the Arctic system.
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
@@ -2078,7 +2078,7 @@ export class App extends HeyApiClient {
   /**
    * List agents
    *
-   * Get a list of all available AI agents in the Arctic CLI system.
+   * Get a list of all available AI agents in the Arctic system.
    */
   public agents<ThrowOnError extends boolean = false>(
     parameters?: {
