@@ -11,6 +11,24 @@ process.env["XDG_CACHE_HOME"] = path.join(dir, "cache")
 process.env["XDG_CONFIG_HOME"] = path.join(dir, "config")
 process.env["XDG_STATE_HOME"] = path.join(dir, "state")
 
+// Copy models cache from user's cache to test cache
+const userModelsCache = path.join(os.homedir(), ".cache/arctic/models.json")
+const testModelsCache = path.join(dir, "cache/arctic/models.json")
+try {
+  await fs.mkdir(path.dirname(testModelsCache), { recursive: true })
+  await fs.copyFile(userModelsCache, testModelsCache)
+  const stat = await fs.stat(testModelsCache)
+  console.log("Copied models cache from", userModelsCache, "to", testModelsCache, "size:", stat.size)
+} catch (e) {
+  console.log("Failed to copy models cache, fetching fresh:", e)
+  // If copy fails, download fresh data
+  const response = await fetch("https://models.dev/api.json")
+  const data = await response.text()
+  await fs.mkdir(path.dirname(testModelsCache), { recursive: true })
+  await fs.writeFile(testModelsCache, data)
+  console.log("Downloaded and saved models cache to", testModelsCache)
+}
+
 // Clear provider env vars to ensure clean test state
 delete process.env["ANTHROPIC_API_KEY"]
 delete process.env["OPENAI_API_KEY"]

@@ -48,12 +48,8 @@ describe("SessionUsage.formatUsageSummary", () => {
     expect(summary).toContain("Access  : allowed")
     expect(summary).toContain("Credits : balance $18.00")
     expect(summary).toContain("Tokens  : total 1.9k · input 1.2k · output 567 · cached 89")
-    expect(summary).toContain(
-      "Primary   57.6 left [████████████░░░░░░░░]  ·  resets in 1h 30m (2025-12-20T13:30:00.000Z)",
-    )
-    expect(summary).toContain(
-      "Secondary 88 left [██████████████████░░]  ·  resets in 0h 15m (2025-12-20T12:15:00.000Z)",
-    )
+    expect(summary).toContain("Primary   57.6 [████████████░░░░░░░░]  ·  resets in 1h 30m (2025-12-20T13:30:00.000Z)")
+    expect(summary).toContain("Secondary 88 [██████████████████░░]  ·  resets in 0h 15m (2025-12-20T12:15:00.000Z)")
   })
 
   it("includes provider errors", () => {

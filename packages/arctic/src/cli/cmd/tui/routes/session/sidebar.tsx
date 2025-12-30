@@ -215,10 +215,23 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
     const provider = currentProvider()
     if (!provider || usageLoading()) return
 
+    // Trigger refresh when the last assistant message completes
+    const lastAssistantMessage = messages()
+      .filter((m) => m.role === "assistant")
+      .findLast((m) => m.time?.completed)
+    const lastCompletedTime = lastAssistantMessage?.time?.completed
+
     const meta = usageMeta()
     const isSameProvider = meta?.providerID === provider
-    const isFresh = meta ? Date.now() - meta.fetchedAt < 60_000 : false
-    if (isSameProvider && isFresh) return
+    
+    // Refresh if:
+    // - Provider changed
+    // - Data is stale (>60s old)
+    // - A new message was completed after our last fetch
+    const isStale = meta ? Date.now() - meta.fetchedAt > 60_000 : false
+    const hasNewMessage = lastCompletedTime && meta ? lastCompletedTime > meta.fetchedAt : false
+    
+    if (isSameProvider && !isStale && !hasNewMessage) return
 
     setUsageLoading(true)
     const directory = sync.data.path.directory

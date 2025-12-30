@@ -1133,6 +1133,19 @@ export function Session() {
     }),
   )
 
+  // Clear render buffer when session goes back to idle after cancellation
+  // This fixes layout corruption that persists after cancelling large messages
+  createEffect(() => {
+    const status = sync.data.session_status[route.sessionID]
+    if (status?.type === "idle") {
+      // Small delay to ensure all state updates have completed
+      setTimeout(() => {
+        renderer.currentRenderBuffer.clear()
+        renderer.requestRender()
+      }, 50)
+    }
+  })
+
   // Auto-navigate to first benchmark slot if session has no messages but has benchmark
   createEffect(() => {
     const currentSession = session()
@@ -1359,9 +1372,9 @@ function UserMessage(props: {
       <Show when={text()}>
         <box id={props.message.id} marginTop={props.index === 0 ? 0 : 1}>
           <box onMouseUp={props.onMouseUp} paddingTop={0} paddingBottom={0} paddingLeft={1} flexShrink={0}>
-            <box flexDirection="row">
+            <box flexDirection="row" flexWrap="wrap">
               <text fg={theme.primary}>{"> "}</text>
-              <box paddingLeft={0} flexShrink={1} backgroundColor={theme.backgroundElement}>
+              <box paddingLeft={0} flexShrink={1} flexGrow={1} backgroundColor={theme.backgroundElement}>
                 <Switch>
                   <Match when={ctx.userMessageMarkdown()}>
                     <code
@@ -1449,6 +1462,8 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
 
   const duration = createMemo(() => {
     if (!props.message.time.completed) return 0
+    // Don't show duration if message was cancelled/aborted and has no finish reason
+    if (!props.message.finish) return 0
     const user = messages().find((x) => x.role === "user" && x.id === props.message.parentID)
     if (!user || !user.time) return 0
     return props.message.time.completed - user.time.created
@@ -1474,7 +1489,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
         }}
       </For>
       <Show when={duration() > 0}>
-        <box paddingLeft={2} marginTop={0}>
+        <box paddingLeft={2} marginTop={1}>
           <text fg={theme.textMuted}>{Locale.duration(duration())}</text>
         </box>
       </Show>

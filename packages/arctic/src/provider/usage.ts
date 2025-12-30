@@ -2,6 +2,7 @@ import { Auth } from "@/auth"
 import { CodexClient } from "@/auth/codex"
 import { decodeJWT, refreshAccessToken } from "@/auth/codex-oauth/auth/auth"
 import { JWT_CLAIM_PATH } from "@/auth/codex-oauth/constants"
+import { refreshAccessToken as refreshAnthropicToken } from "@/auth/anthropic-oauth"
 import { OAuth2Client } from "google-auth-library"
 import { Global } from "@/global"
 import fs from "fs/promises"
@@ -424,6 +425,26 @@ export namespace ProviderUsage {
     }
   }
 
+  async function ensureAnthropicAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+    let token = auth.access
+    if (!token || auth.expires <= Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+      const refreshed = await refreshAnthropicToken(auth.refresh)
+      if (refreshed.type === "failed") {
+        throw new Error("Failed to refresh Anthropic token. Run `arctic auth login` to reconnect your account.")
+      }
+
+      const updated: Extract<Auth.Info, { type: "oauth" }> = {
+        type: "oauth",
+        access: refreshed.access!,
+        refresh: refreshed.refresh!,
+        expires: refreshed.expires!,
+      }
+      await Auth.set("anthropic", updated)
+      token = refreshed.access!
+    }
+    return token
+  }
+
   async function fetchAnthropicUsage(input: {
     provider: Provider.Info
   }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
@@ -433,7 +454,7 @@ export namespace ProviderUsage {
     if (auth?.type === "api") {
       token = auth.key
     } else if (auth?.type === "oauth") {
-      token = auth.access
+      token = await ensureAnthropicAccessToken(auth)
     } else if (auth?.type === "wellknown") {
       token = auth.token || auth.key
     }

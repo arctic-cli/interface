@@ -60,7 +60,8 @@ if (!Script.preview) {
 
 if (shouldPublish) {
   const platformPackages = Object.keys(binaries)
-  const tagArgs = publishTag ? ["--tag", publishTag] : []
+  const defaultTag = publishTag || Script.channel
+  const tagArgs = ["--tag", defaultTag]
   const otpArgs = otpValue ? ["--otp", otpValue] : []
   for (const name of platformPackages) {
     console.log(`publishing ${name}`)
