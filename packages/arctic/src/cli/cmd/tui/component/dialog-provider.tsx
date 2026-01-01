@@ -18,6 +18,7 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   google: 4,
   antigravity: 5,
   openrouter: 5,
+  ollama: 6,
   codex: 7,
 }
 
@@ -36,6 +37,7 @@ export function createDialogProviderOptions() {
           anthropic: "(Claude Max or API key)",
           antigravity: "(Gemini 3/Sonnet/Opus 4.5)",
           codex: "(GPT-5 via ChatGPT Plus/Pro)",
+          ollama: "(local models)",
         }[provider.id],
         category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
         async onSelect() {
@@ -82,6 +84,10 @@ export function createDialogProviderOptions() {
             }
           }
           if (method.type === "api") {
+            // Special case for ollama - use custom connection flow
+            if (provider.id === "ollama") {
+              return dialog.replace(() => <OllamaMethod providerID={provider.id} title={method.label} />)
+            }
             return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} />)
           }
         },
@@ -212,5 +218,139 @@ function ApiMethod(props: ApiMethodProps) {
         dialog.replace(() => <DialogModel providerID={props.providerID} />)
       }}
     />
+  )
+}
+
+interface OllamaMethodProps {
+  providerID: string
+  title: string
+}
+function OllamaMethod(props: OllamaMethodProps) {
+  const dialog = useDialog()
+  const { theme } = useTheme()
+
+  return (
+    <DialogPrompt
+      title="Ollama host"
+      placeholder="127.0.0.1"
+      description={() => (
+        <box gap={1}>
+          <text fg={theme.textMuted}>Connect to a local Ollama instance</text>
+        </box>
+      )}
+      onConfirm={(value) => {
+        const host = value || "127.0.0.1"
+        dialog.replace(() => <OllamaPortStep host={host} />)
+      }}
+    />
+  )
+}
+
+interface OllamaPortStepProps {
+  host: string
+}
+function OllamaPortStep(props: OllamaPortStepProps) {
+  const dialog = useDialog()
+  const { theme } = useTheme()
+  const [error, setError] = createSignal<string | undefined>()
+
+  return (
+    <DialogPrompt
+      title="Ollama port"
+      placeholder="11434"
+      description={() => (
+        <box gap={1}>
+          <text fg={theme.textMuted}>Host: {props.host}</text>
+          <Show when={error()}>
+            <text fg={theme.error}>{error()}</text>
+          </Show>
+        </box>
+      )}
+      onConfirm={async (value) => {
+        const portValue = value || "11434"
+        const portNum = parseInt(portValue, 10)
+        if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+          setError("Invalid port number")
+          return
+        }
+        dialog.replace(() => <OllamaConnectingStep host={props.host} port={portNum} />)
+      }}
+    />
+  )
+}
+
+interface OllamaConnectingStepProps {
+  host: string
+  port: number
+}
+function OllamaConnectingStep(props: OllamaConnectingStepProps) {
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const sync = useSync()
+  const { theme } = useTheme()
+  const [error, setError] = createSignal<string | undefined>()
+  const [connecting, setConnecting] = createSignal(true)
+
+  onMount(async () => {
+    const baseUrl = `http://${props.host}:${props.port}`
+
+    try {
+      const response = await fetch(`${baseUrl}/v1/models`, {
+        signal: AbortSignal.timeout(10000),
+      })
+
+      if (!response.ok) {
+        setError(`HTTP ${response.status}: ${response.statusText}`)
+        setConnecting(false)
+        return
+      }
+
+      const data = (await response.json()) as { data?: Array<{ id: string }> }
+
+      if (!data.data || data.data.length === 0) {
+        setError("No models found. Pull a model with: ollama pull <model>")
+        setConnecting(false)
+        return
+      }
+
+      // Save the ollama config
+      await sdk.client.auth.set({
+        providerID: "ollama",
+        auth: {
+          type: "ollama",
+          host: props.host,
+          port: props.port,
+        } as any,
+      })
+
+      await sdk.client.instance.dispose()
+      await sync.bootstrap()
+      dialog.replace(() => <DialogModel providerID="ollama" />)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setError(`Connection failed: ${message}`)
+      setConnecting(false)
+    }
+  })
+
+  return (
+    <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
+      <box flexDirection="row" justifyContent="space-between">
+        <text attributes={TextAttributes.BOLD} fg={theme.text}>
+          {connecting() ? "Connecting to Ollama" : "Connection Failed"}
+        </text>
+        <text fg={theme.textMuted}>esc</text>
+      </box>
+      <text fg={theme.textMuted}>
+        {props.host}:{props.port}
+      </text>
+      <Show when={connecting()}>
+        <text fg={theme.primary}>Connecting...</text>
+      </Show>
+      <Show when={error()}>
+        <text fg={theme.error}>{error()}</text>
+        <text fg={theme.textMuted}>Press esc to go back</text>
+      </Show>
+    </box>
   )
 }

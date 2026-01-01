@@ -1559,7 +1559,11 @@ export namespace Server {
           const providers = await Provider.list().then((x) => mapValues(x, (item) => item))
           return c.json({
             providers: Object.values(providers),
-            default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),
+            default: mapValues(providers, (item) => {
+              const models = Object.values(item.models)
+              if (models.length === 0) return ""
+              return Provider.sort(models)[0].id
+            }),
           })
         },
       )
@@ -1599,6 +1603,16 @@ export namespace Server {
             }
           }
 
+          // Add ollama as a special local provider
+          if (!disabled.has("ollama") && (!enabled || enabled.has("ollama"))) {
+            filteredProviders["ollama"] = {
+              id: "ollama",
+              name: "Ollama",
+              env: [],
+              models: {},
+            }
+          }
+
           const connected = await Provider.list()
           const providers = Object.assign(
             mapValues(filteredProviders, (x) => Provider.fromModelsDevProvider(x)),
@@ -1606,7 +1620,11 @@ export namespace Server {
           )
           return c.json({
             all: Object.values(providers),
-            default: mapValues(providers, (item) => Provider.sort(Object.values(item.models))[0].id),
+            default: mapValues(providers, (item) => {
+              const models = Object.values(item.models)
+              if (models.length === 0) return ""
+              return Provider.sort(models)[0].id
+            }),
             connected: Object.keys(connected),
           })
         },

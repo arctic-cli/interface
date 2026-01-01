@@ -26,6 +26,30 @@ curl -fsSL https://arcticli.com/install | bash
 irm https://arcticli.com/install.ps1 | iex
 ```
 
+## Supported Providers
+
+**Coding Plan:**
+
+- Anthropic (Claude Code)
+- Codex
+- Google (Gemini CLI)
+- Antigravity
+- Z.AI
+- Github Copilot
+- Kimi Coding
+- Amp Code
+
+**API:**
+
+- OpenAI
+- Anthropic
+- Openrouter
+- Chutes
+- Perplexity
+- Z.AI
+- Ollama (local models)
+- and way more...
+
 ## Quick Start
 
 Start the interface:
@@ -40,5 +64,11 @@ arctic
 bun install
 bun dev
 ```
+
+## Contributing
+
+Arctic is a brand new project and we'd love your input! Whether you have ideas, want to report issues, or submit PRs - all contributions are very welcome.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 [Documentation](https://arcticli.com/docs) • [License](LICENSE)

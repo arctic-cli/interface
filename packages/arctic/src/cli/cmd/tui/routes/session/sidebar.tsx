@@ -211,16 +211,28 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
     return `${minutes}m left`
   }
 
+  // Memoize the last completed message time to avoid re-running the effect on every message update
+  const lastCompletedMessageTime = createMemo(() => {
+    const lastAssistantMessage = messages()
+      .filter((m) => m.role === "assistant")
+      .findLast((m) => m.time?.completed)
+    return lastAssistantMessage?.time?.completed
+  })
+
+  // Track session status to only fetch usage when session is idle
+  const sessionStatus = createMemo(() => sync.data.session_status[props.sessionID ?? ""])
+
   createEffect(() => {
     if (!expanded.usage || !showUsageLimits()) return
     const provider = currentProvider()
     if (!provider || usageLoading()) return
 
-    // Trigger refresh when the last assistant message completes
-    const lastAssistantMessage = messages()
-      .filter((m) => m.role === "assistant")
-      .findLast((m) => m.time?.completed)
-    const lastCompletedTime = lastAssistantMessage?.time?.completed
+    // Only fetch usage when session is idle (not during active generation)
+    const status = sessionStatus()
+    if (status?.type === "busy") return
+
+    // Only react to changes in the last completed message time
+    const lastCompletedTime = lastCompletedMessageTime()
 
     const meta = usageMeta()
     const isSameProvider = meta?.providerID === provider

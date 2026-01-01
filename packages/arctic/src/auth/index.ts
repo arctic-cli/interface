@@ -50,7 +50,15 @@ export namespace Auth {
     })
     .meta({ ref: "GithubAuth" })
 
-  export const Info = z.discriminatedUnion("type", [Oauth, Api, WellKnown, Codex, Github]).meta({ ref: "Auth" })
+  export const Ollama = z
+    .object({
+      type: z.literal("ollama"),
+      host: z.string(),
+      port: z.number(),
+    })
+    .meta({ ref: "OllamaAuth" })
+
+  export const Info = z.discriminatedUnion("type", [Oauth, Api, WellKnown, Codex, Github, Ollama]).meta({ ref: "Auth" })
   export type Info = z.infer<typeof Info>
 
   const filepath = path.join(Global.Path.data, "auth.json")
@@ -249,8 +257,7 @@ export namespace Auth {
     const { accessToken, refreshToken, expiresAt } = authFile.claudeAiOauth
     if (!accessToken || !refreshToken) return null
 
-    const expires =
-      typeof expiresAt === "number" && Number.isFinite(expiresAt) ? expiresAt : Date.now() + 3600 * 1000
+    const expires = typeof expiresAt === "number" && Number.isFinite(expiresAt) ? expiresAt : Date.now() + 3600 * 1000
 
     return {
       type: "oauth",

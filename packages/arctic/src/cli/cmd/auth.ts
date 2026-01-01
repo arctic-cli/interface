@@ -175,6 +175,90 @@ async function handleCodexDeviceLogin() {
   }
 }
 
+interface OllamaModel {
+  id: string
+  object: string
+  created: number
+  owned_by: string
+}
+
+interface OllamaModelsResponse {
+  object: string
+  data: OllamaModel[]
+}
+
+async function handleOllamaLogin() {
+  prompts.log.info("Connect to a local Ollama instance.")
+
+  const host = await prompts.text({
+    message: "Ollama host",
+    placeholder: "127.0.0.1",
+    defaultValue: "127.0.0.1",
+  })
+  if (prompts.isCancel(host)) throw new UI.CancelledError()
+
+  const portInput = await prompts.text({
+    message: "Ollama port",
+    placeholder: "11434",
+    defaultValue: "11434",
+    validate: (x) => {
+      if (!x) return undefined
+      const port = parseInt(x, 10)
+      if (isNaN(port) || port < 1 || port > 65535) return "Invalid port number"
+      return undefined
+    },
+  })
+  if (prompts.isCancel(portInput)) throw new UI.CancelledError()
+
+  const hostValue = host || "127.0.0.1"
+  const port = parseInt(portInput || "11434", 10)
+  const baseUrl = `http://${hostValue}:${port}`
+
+  const spinner = prompts.spinner()
+  spinner.start("Connecting to Ollama...")
+
+  try {
+    const response = await fetch(`${baseUrl}/v1/models`, {
+      signal: AbortSignal.timeout(10000),
+    })
+
+    if (!response.ok) {
+      spinner.stop("Failed to connect to Ollama", 1)
+      prompts.log.error(`HTTP ${response.status}: ${response.statusText}`)
+      return
+    }
+
+    const data = (await response.json()) as OllamaModelsResponse
+
+    if (!data.data || data.data.length === 0) {
+      spinner.stop("Connected but no models found", 1)
+      prompts.log.warn("No models available. Pull a model with: ollama pull <model>")
+      return
+    }
+
+    spinner.stop("Connected to Ollama")
+
+    prompts.log.info(`Found ${data.data.length} model${data.data.length === 1 ? "" : "s"}:`)
+    for (const model of data.data) {
+      prompts.log.message(`  ${model.id} ${UI.Style.TEXT_DIM}(${model.owned_by})`)
+    }
+
+    await Auth.set("ollama", {
+      type: "ollama",
+      host: hostValue,
+      port,
+    })
+
+    prompts.log.success("Ollama configured successfully")
+    prompts.outro("Done")
+  } catch (error) {
+    spinner.stop("Failed to connect to Ollama", 1)
+    const message = error instanceof Error ? error.message : String(error)
+    prompts.log.error(`Connection failed: ${message}`)
+    prompts.log.info("Make sure Ollama is running: ollama serve")
+  }
+}
+
 export const AuthCommand = cmd({
   command: "auth",
   describe: "manage credentials",
@@ -296,6 +380,12 @@ export const AuthLoginCommand = cmd({
           env: [],
           models: {},
         }
+        providers["ollama"] = {
+          id: "ollama",
+          name: "Ollama",
+          env: [],
+          models: {},
+        }
 
         const priority: Record<string, number> = {
           arctic: 0,
@@ -305,6 +395,7 @@ export const AuthLoginCommand = cmd({
           google: 4,
           antigravity: 5,
           openrouter: 5,
+          ollama: 7,
           vercel: 6,
         }
         let provider = await prompts.autocomplete({
@@ -325,6 +416,7 @@ export const AuthLoginCommand = cmd({
                   arctic: "recommended",
                   anthropic: "Claude Max or API key",
                   "github-copilot": "usage tracking",
+                  ollama: "local models",
                 }[x.id],
               })),
             ),
@@ -379,6 +471,11 @@ export const AuthLoginCommand = cmd({
 
         if (provider === "antigravity") {
           await import("../../auth/antigravity-oauth/cli").then((m) => m.handleAntigravityLogin())
+          return
+        }
+
+        if (provider === "ollama") {
+          await handleOllamaLogin()
           return
         }
 

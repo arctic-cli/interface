@@ -31,7 +31,6 @@ Arctic is built with **Bun**. Please ensure you have [Bun 1.3+](https://bun.sh) 
 This is a monorepo managed with [Turbo](https://turbo.build/).
 
 - **`packages/arctic`**: The core CLI and TUI application (SolidJS + OpenTUI).
-- **`packages/web`**: The documentation website (Next.js + Fumadocs).
 - **`packages/sdk`**: Client SDKs.
 - **`packages/plugin`**: Plugin system types and utilities.
 

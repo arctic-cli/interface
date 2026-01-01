@@ -27,6 +27,7 @@ export const iconNames = [
   "arctic",
   "openai",
   "ollama-cloud",
+  "ollama",
   "nvidia",
   "nebius",
   "morph",

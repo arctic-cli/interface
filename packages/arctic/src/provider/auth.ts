@@ -30,7 +30,7 @@ export namespace ProviderAuth {
 
   export async function methods() {
     const s = await state().then((x) => x.methods)
-    return mapValues(s, (x) =>
+    const result = mapValues(s, (x) =>
       x.methods.map(
         (y): Method => ({
           type: y.type,
@@ -38,6 +38,14 @@ export namespace ProviderAuth {
         }),
       ),
     )
+    // Add ollama as a special local provider with custom connect flow
+    result["ollama"] = [
+      {
+        type: "api", // Uses API type but has custom handling
+        label: "Connect to local instance",
+      },
+    ]
+    return result
   }
 
   export const Authorization = z

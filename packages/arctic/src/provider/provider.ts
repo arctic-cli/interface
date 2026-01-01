@@ -433,6 +433,19 @@ export namespace Provider {
         },
       }
     },
+    ollama: async () => {
+      const auth = await Auth.get("ollama")
+      if (auth?.type !== "ollama") return { autoload: false }
+
+      const baseURL = `http://${auth.host}:${auth.port}/v1`
+
+      return {
+        autoload: true,
+        options: {
+          baseURL,
+        },
+      }
+    },
     google: async () => {
       const auth = await Auth.get("google")
       const codeAssistHeaders = {
@@ -1662,6 +1675,63 @@ export namespace Provider {
           headers: {},
         },
       },
+    }
+
+    // Ollama provider - dynamically loads models from the local Ollama instance
+    const ollamaAuth = await Auth.get("ollama")
+    if (ollamaAuth?.type === "ollama") {
+      const baseURL = `http://${ollamaAuth.host}:${ollamaAuth.port}/v1`
+      const ollamaModels: Record<string, Model> = {}
+
+      try {
+        const response = await fetch(`${baseURL}/models`, {
+          signal: AbortSignal.timeout(5000),
+        })
+        if (response.ok) {
+          const data = (await response.json()) as { data: Array<{ id: string; owned_by: string; created: number }> }
+          for (const model of data.data ?? []) {
+            ollamaModels[model.id] = {
+              id: model.id,
+              providerID: "ollama",
+              name: model.id,
+              api: {
+                id: model.id,
+                url: baseURL,
+                npm: "@ai-sdk/openai-compatible",
+              },
+              status: "active",
+              capabilities: {
+                temperature: true,
+                reasoning: false,
+                attachment: false,
+                toolcall: true,
+                input: { text: true, audio: false, image: false, video: false, pdf: false },
+                output: { text: true, audio: false, image: false, video: false, pdf: false },
+                interleaved: false,
+              },
+              cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+              limit: { context: 128000, output: 8192 },
+              options: {},
+              headers: {},
+            }
+          }
+        }
+      } catch {
+        log.warn("ollama", { message: "Failed to fetch models from Ollama" })
+      }
+
+      if (Object.keys(ollamaModels).length > 0) {
+        database["ollama"] = {
+          id: "ollama",
+          name: "Ollama",
+          source: "custom",
+          env: [],
+          options: {
+            baseURL,
+          },
+          models: ollamaModels,
+        }
+      }
     }
 
     const disabled = new Set(config.disabled_providers ?? [])
