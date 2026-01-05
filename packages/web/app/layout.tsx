@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/react"
 import { RootProvider } from "fumadocs-ui/provider/next"
 import type { Metadata } from "next"
 import { Outfit } from "next/font/google"
+import Script from "next/script"
 import "./global.css"
 
 const primary = Outfit({
@@ -75,6 +76,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
         <RootProvider>{children}</RootProvider>
         <Analytics />
       </body>
+      <Script src="https://scripts.simpleanalyticscdn.com/latest.js" />
     </html>
   )
 }
