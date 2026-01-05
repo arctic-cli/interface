@@ -12,21 +12,21 @@ curl -fsSL https://usearctic.sh/install | bash
 arctic
 ```
 
-That's it. You're in.
+You're set.
 
 ## Why Arctic?
 
-**Never hit a rate limit unexpectedly again.**
+**Know your usage without the guesswork.**
 
-Arctic shows you real-time usage for every AI coding plan you use: Claude Code, Codex, Gemini, Antigravity, and more. Track requests, tokens, and quotas. All in one place.
+Arctic shows real-time usage for every AI coding plan you use: Claude Code, Codex, Gemini, Antigravity, and more. Track requests, tokens, and quotas in one place.
 
-**Switch providers without losing your context.**
+**Move between providers smoothly.**
 
-One conversation. Multiple models. Compare Claude vs Gemini on the same task. Switch instantly without starting over.
+Keep one conversation while switching models. Compare Claude vs Gemini on the same task without starting over.
 
-**Your code stays yours.**
+**Keep your setup simple and local.**
 
-Arctic runs on your machine. No proxies. No data collection. Direct connection to your AI provider.
+Arctic runs on your machine and connects directly to your AI provider.
 
 ## Works With Everything
 
