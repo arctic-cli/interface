@@ -1,9 +1,9 @@
 import { ProviderUsage } from "@/provider/usage"
 import { Locale } from "@/util/locale"
-import { ScrollBoxRenderable, TextAttributes } from "@opentui/core"
+import { ScrollBoxRenderable, TextAttributes, InputRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useSync } from "@tui/context/sync"
-import { For, Show, createEffect, createMemo, createSignal, onMount } from "solid-js"
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useRoute } from "../context/route"
 import { useSDK } from "../context/sdk"
@@ -71,6 +71,8 @@ export function DialogUsage() {
   const dimensions = useTerminalDimensions()
 
   const [selectedProvider, setSelectedProvider] = createSignal<string | null>(null)
+  const [searchQuery, setSearchQuery] = createSignal("")
+  const [debouncedQuery, setDebouncedQuery] = createSignal("")
   const [usageState, setUsageState] = createStore<{
     records: Record<string, ProviderUsage.Record>
     loading: Record<string, boolean>
@@ -80,10 +82,37 @@ export function DialogUsage() {
   })
   const inFlight = new Map<string, Promise<void>>()
   let prefetchSeq = 0
+  let debounceTimeout: Timer | undefined
 
   let scroll: ScrollBoxRenderable
+  let searchInput: InputRenderable | undefined
+
+  createEffect(() => {
+    const query = searchQuery()
+    if (debounceTimeout) clearTimeout(debounceTimeout)
+
+    debounceTimeout = setTimeout(() => {
+      setDebouncedQuery(query)
+    }, 500)
+
+    onCleanup(() => {
+      if (debounceTimeout) clearTimeout(debounceTimeout)
+    })
+  })
 
   useKeyboard((evt) => {
+    if (evt.name === "escape") {
+      if (searchQuery().length > 0) {
+        evt.preventDefault()
+        setSearchQuery("")
+        setDebouncedQuery("")
+        if (debounceTimeout) clearTimeout(debounceTimeout)
+        if (searchInput) searchInput.focus()
+        return
+      }
+      return
+    }
+
     // Scroll navigation
     if (evt.name === "up" || (evt.ctrl && evt.name === "p")) {
       evt.preventDefault()
@@ -110,7 +139,7 @@ export function DialogUsage() {
     if (evt.name === "tab" && !evt.shift && !evt.ctrl && !evt.meta) {
       // Always prevent default to stop mode switching
       evt.preventDefault()
-      const providers = providerTabs()
+      const providers = filteredProviderTabs()
       if (providers.length > 0) {
         const current = selectedProvider()
         const currentIndex = current ? providers.indexOf(current) : -1
@@ -123,6 +152,7 @@ export function DialogUsage() {
 
   onMount(() => {
     dialog.setSize("xlarge")
+    if (searchInput) searchInput.focus()
   })
 
   const sessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
@@ -144,11 +174,32 @@ export function DialogUsage() {
     return Object.fromEntries(sync.data.provider.map((provider) => [provider.id, provider]))
   })
 
-  // Auto-select first provider
-  createMemo(() => {
-    const tabs = providerTabs()
-    if (tabs.length > 0 && !selectedProvider()) {
-      setSelectedProvider(tabs[0])
+  const filteredProviderTabs = createMemo(() => {
+    const query = debouncedQuery().toLowerCase().trim()
+    if (!query) return providerTabs()
+
+    return providerTabs().filter((providerID) => {
+      const provider = providerById()[providerID]
+      const name = provider?.name?.toLowerCase() ?? ""
+      const id = providerID.toLowerCase()
+      return name.includes(query) || id.includes(query)
+    })
+  })
+
+  // Auto-select first provider from filtered list
+  createEffect(() => {
+    const filtered = filteredProviderTabs()
+    if (filtered.length > 0) {
+      const firstProvider = filtered[0]
+      const current = untrack(selectedProvider)
+      if (current !== firstProvider) {
+        setSelectedProvider(firstProvider)
+      }
+    } else {
+      const current = untrack(selectedProvider)
+      if (current !== null) {
+        setSelectedProvider(null)
+      }
     }
   })
 
@@ -232,37 +283,59 @@ export function DialogUsage() {
         <text fg={theme.textMuted}>esc · tab to switch providers</text>
       </box>
 
-      {/* Provider Tabs */}
-      <box flexDirection="column" gap={1} paddingBottom={1}>
-        <For each={chunkArray(providerTabs(), 8)}>
-          {(row) => (
-            <box flexDirection="row" gap={1}>
-              <For each={row}>
-                {(providerID) => {
-                  const record = () => usageState.records[providerID]
-                  const name = () =>
-                    truncateTabName(record()?.providerName ?? providerById()[providerID]?.name ?? providerID)
-                  return (
-                    <box paddingLeft={2} paddingRight={2} paddingTop={0} paddingBottom={0} flexShrink={0}>
-                      <text
-                        attributes={selectedProvider() === providerID ? TextAttributes.BOLD : undefined}
-                        style={{
-                          bg: selectedProvider() === providerID ? "#2563eb" : undefined,
-                          fg: selectedProvider() === providerID ? "#ffffff" : theme.textMuted,
-                        }}
-                      >
-                        {name()}
-                      </text>
-                    </box>
-                  )
-                }}
-              </For>
-            </box>
-          )}
-        </For>
+      <box paddingBottom={1} flexDirection="row" alignItems="flex-start" gap={1}>
+        <text fg={theme.textMuted}>Search:</text>
+        <input
+          ref={(r: InputRenderable) => (searchInput = r)}
+          value={searchQuery()}
+          onInput={(value: string) => setSearchQuery(value)}
+          placeholder="Type to filter providers..."
+          flexGrow={1}
+          focusedBackgroundColor={theme.backgroundPanel}
+          cursorColor={theme.primary}
+          focusedTextColor={theme.text}
+        />
       </box>
 
-      {!selectedProvider() && <text fg={theme.textMuted}>No providers available.</text>}
+      {/* Provider Tabs */}
+      <Show when={filteredProviderTabs().length > 0}>
+        <box flexDirection="column" gap={1} paddingBottom={1}>
+          <For each={chunkArray(filteredProviderTabs(), 8)}>
+            {(row) => (
+              <box flexDirection="row" gap={1}>
+                <For each={row}>
+                  {(providerID) => {
+                    const record = () => usageState.records[providerID]
+                    const name = () =>
+                      truncateTabName(record()?.providerName ?? providerById()[providerID]?.name ?? providerID)
+                    return (
+                      <box paddingLeft={2} paddingRight={2} paddingTop={0} paddingBottom={0} flexShrink={0}>
+                        <text
+                          attributes={selectedProvider() === providerID ? TextAttributes.BOLD : undefined}
+                          style={{
+                            bg: selectedProvider() === providerID ? "#2563eb" : undefined,
+                            fg: selectedProvider() === providerID ? "#ffffff" : theme.textMuted,
+                          }}
+                        >
+                          {name()}
+                        </text>
+                      </box>
+                    )
+                  }}
+                </For>
+              </box>
+            )}
+          </For>
+        </box>
+      </Show>
+
+      <Show when={filteredProviderTabs().length === 0 && debouncedQuery().length > 0}>
+        <text fg={theme.textMuted}>No matches found for "{debouncedQuery()}"</text>
+      </Show>
+
+      {!selectedProvider() && filteredProviderTabs().length > 0 && (
+        <text fg={theme.textMuted}>No providers available.</text>
+      )}
       {selectedProvider() && selectedLoading() && !hasEntries() && <text fg={theme.textMuted}>Loading usage…</text>}
       {selectedProvider() && hasEntries() && (
         <scrollbox

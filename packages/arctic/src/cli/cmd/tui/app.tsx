@@ -291,13 +291,7 @@ function App() {
         return
       }
 
-      // If the prompt has input, track this as first press but let prompt component handle it
-      if (promptRef.current?.current.input) {
-        // Track as first Ctrl+C press for exit detection
-        lastCtrlCPress = Date.now()
-        return
-      }
-
+      // Priority 1: If text is selected on screen, copy it (regardless of prompt state)
       if (lastSelectionText) {
         // When text is selected, just copy it without tracking Ctrl+C presses for exit
         event.preventDefault?.()
@@ -314,8 +308,15 @@ function App() {
         // reset the double-press timer when copying selected text
         lastCtrlCPress = 0
         setExitConfirmation(false)
-      } else if (isCtrlC || isCopy) {
-        // if nothing selected and it was a Ctrl+C (or equivalent exit bind), track for double-press exit
+        return
+      }
+
+      if (promptRef.current?.current.input) {
+        lastCtrlCPress = Date.now()
+        return
+      }
+
+      if (isCtrlC || isCopy) {
         const now = Date.now()
         if (now - lastCtrlCPress < 500) {
           setExitConfirmation(false)
@@ -512,6 +513,7 @@ function App() {
     {
       title: "View usage",
       value: "arctic.usage",
+      keybind: "usage_view",
       onSelect: () => {
         dialog.replace(() => <DialogUsage />)
       },

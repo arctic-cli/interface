@@ -9,7 +9,7 @@ APP=arctic
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
-ORANGE='\033[38;5;214m'
+BLUE='\033[38;5;117m'
 NC='\033[0m' # No Color
 
 requested_version=${VERSION:-}
@@ -219,7 +219,7 @@ print_progress() {
     local empty=$(printf "%*s" "$off" "")
     empty=${empty// /･}
 
-    printf "\r${ORANGE}%s%s %3d%%${NC}" "$filled" "$empty" "$percent" >&4
+    printf "\r${BLUE}%s%s %3d%%${NC}" "$filled" "$empty" "$percent" >&4
 }
 
 download_with_progress() {
@@ -412,22 +412,28 @@ if [[ -z $config_file ]]; then
     exit 1
 fi
 
+needs_source=false
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     case $current_shell in
         fish)
             add_to_path "$config_file" "fish_add_path $INSTALL_DIR"
+            needs_source=true
         ;;
         zsh)
             add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            needs_source=true
         ;;
         bash)
             add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            needs_source=true
         ;;
         ash)
             add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            needs_source=true
         ;;
         sh)
             add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            needs_source=true
         ;;
         *)
             export PATH=$INSTALL_DIR:$PATH
@@ -435,6 +441,9 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
             print_message info "  export PATH=$INSTALL_DIR:\$PATH"
         ;;
     esac
+    
+    # Export PATH for the current session (though this won't affect parent shell)
+    export PATH=$INSTALL_DIR:$PATH
 fi
 
 if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
@@ -449,6 +458,23 @@ echo -e "  ${NC}Arctic installed successfully!${NC}"
 echo -e ""
 echo -e "${MUTED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e ""
+
+if [ "$needs_source" = true ]; then
+    echo -e "  ${BLUE}⚠  To use arctic immediately, run:${NC}"
+    echo -e ""
+    case $current_shell in
+        fish)
+            echo -e "  ${NC}source $config_file${NC}"
+        ;;
+        *)
+            echo -e "  ${NC}source $config_file${NC}"
+        ;;
+    esac
+    echo -e ""
+    echo -e "  ${MUTED}Or restart your terminal${NC}"
+    echo -e ""
+fi
+
 echo -e "  ${MUTED}Get started:${NC}"
 echo -e ""
 echo -e "  cd <project>  ${MUTED}# Open your project${NC}"

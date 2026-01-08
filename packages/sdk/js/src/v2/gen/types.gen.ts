@@ -865,6 +865,10 @@ export type KeybindsConfig = {
    */
   status_view?: string
   /**
+   * View usage
+   */
+  usage_view?: string
+  /**
    * Export session to editor
    */
   session_export?: string

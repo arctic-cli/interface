@@ -1713,9 +1713,11 @@ export function Prompt(props: PromptProps) {
           </Show>
         </box>
         <Show when={sync.data.permission_bypass_enabled}>
-          <text fg={theme.error} paddingLeft={1}>
-            PERMISSION BYPASS ENABLED - AI can execute any command
-          </text>
+          <box paddingLeft={1}>
+            <text fg={theme.error} attributes={TextAttributes.BOLD}>
+              permission bypass enabled
+            </text>
+          </box>
         </Show>
         <Show when={props.exitConfirmation}>
           <text fg={theme.textMuted} paddingLeft={1}>

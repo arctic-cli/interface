@@ -1194,7 +1194,7 @@ export function Session() {
       }}
     >
       <box flexDirection="row">
-        <box flexGrow={1} paddingBottom={1} paddingTop={1} paddingLeft={2} paddingRight={2} gap={1}>
+        <box flexGrow={1} paddingBottom={1} paddingTop={1} gap={1}>
           <Show when={session()}>
             <scrollbox
               ref={(r) => (scroll = r)}
@@ -1385,7 +1385,7 @@ function UserMessage(props: {
     <>
       <Show when={text()}>
         <box id={props.message.id} marginTop={props.index === 0 ? 0 : 1}>
-          <box onMouseUp={props.onMouseUp} paddingTop={0} paddingBottom={0} paddingLeft={1}>
+          <box onMouseUp={props.onMouseUp} paddingTop={0} paddingBottom={0} paddingLeft={0}>
             <box paddingLeft={0} backgroundColor={theme.backgroundElement}>
               <Switch>
                 <Match when={ctx.userMessageMarkdown()}>
@@ -1516,6 +1516,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
   const sync = useSync()
   const ctx = use()
   const messages = createMemo(() => sync.data.message[props.message.sessionID] ?? [])
+  const status = createMemo(() => sync.data.session_status[props.message.sessionID])
   const textOrder = createMemo(() => {
     const order = new Map<string, number>()
     let count = 0
@@ -1538,6 +1539,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
 
   const isStreaming = createMemo(() => {
     if (!props.last || props.message.time.completed) return false
+    if (status()?.type !== "busy") return false
 
     const lastPart = props.parts[props.parts.length - 1]
     if (!lastPart) return true
