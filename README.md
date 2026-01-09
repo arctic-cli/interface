@@ -5,6 +5,19 @@ See your limits. Switch providers instantly. Stay in control.
 
 ![Arctic Demo](https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGFkazZsa2I2YnM4c3R0Z3duMjQ4cTQzMTZxc2hkZ2xxdDAzMnh2YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5iJOom0R1fgX7xKuCU/giphy.gif)
 
+## What is Arctic?
+
+Arctic is an open-source fork of OpenCode, built to add native support for multiple AI coding plans and real-time usage tracking.
+
+**Why Arctic exists:**
+
+- **Extended provider support**: Native integration with Claude Code, Codex, Antigravity, Gemini CLI, GitHub Copilot, Z.AI, Kimi, Amp Code, and Qwen Code
+- **Built-in usage monitoring**: See your quota limits, requests, and tokens directly in the TUI for all supported coding plans
+- **Same ecosystem**: Arctic is fully compatible with OpenCode's configuration system and automatically imports your existing OpenCode settings when you switch
+
+**Do I need to switch?**  
+Yes, to see usage statistics and limits for your AI coding plans, you'll need to use Arctic. Since it's an OpenCode fork, switching is seamless, your custom commands, agents, and MCP servers work immediately.
+
 ## Get Started
 
 ```bash

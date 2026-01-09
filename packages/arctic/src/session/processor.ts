@@ -34,6 +34,7 @@ export namespace SessionProcessor {
     sessionID: string
     model: Provider.Model
     abort: AbortSignal
+    toolNameResolver?: (name: string) => string
   }) {
     const toolcalls: Record<string, MessageV2.ToolPart> = {}
     let snapshot: string | undefined
@@ -104,12 +105,15 @@ export namespace SessionProcessor {
                   break
 
                 case "tool-input-start":
+                  const resolvedToolName = input.toolNameResolver
+                    ? input.toolNameResolver(value.toolName)
+                    : value.toolName
                   const part = await Session.updatePart({
                     id: toolcalls[value.id]?.id ?? Identifier.ascending("part"),
                     messageID: input.assistantMessage.id,
                     sessionID: input.assistantMessage.sessionID,
                     type: "tool",
-                    tool: value.toolName,
+                    tool: resolvedToolName,
                     callID: value.id,
                     state: {
                       status: "pending",
@@ -129,9 +133,12 @@ export namespace SessionProcessor {
                 case "tool-call": {
                   const match = toolcalls[value.toolCallId]
                   if (match) {
+                    const resolvedToolName = input.toolNameResolver
+                      ? input.toolNameResolver(value.toolName)
+                      : value.toolName
                     const part = await Session.updatePart({
                       ...match,
-                      tool: value.toolName,
+                      tool: resolvedToolName,
                       state: {
                         status: "running",
                         input: value.input,
@@ -151,7 +158,7 @@ export namespace SessionProcessor {
                       lastThree.every(
                         (p) =>
                           p.type === "tool" &&
-                          p.tool === value.toolName &&
+                          p.tool === resolvedToolName &&
                           p.state.status !== "pending" &&
                           JSON.stringify(p.state.input) === JSON.stringify(value.input),
                       )
@@ -160,13 +167,13 @@ export namespace SessionProcessor {
                       if (permission.doom_loop === "ask") {
                         await Permission.ask({
                           type: "doom_loop",
-                          pattern: value.toolName,
+                          pattern: resolvedToolName,
                           sessionID: input.assistantMessage.sessionID,
                           messageID: input.assistantMessage.id,
                           callID: value.toolCallId,
-                          title: `Possible doom loop: "${value.toolName}" called ${DOOM_LOOP_THRESHOLD} times with identical arguments`,
+                          title: `Possible doom loop: "${resolvedToolName}" called ${DOOM_LOOP_THRESHOLD} times with identical arguments`,
                           metadata: {
-                            tool: value.toolName,
+                            tool: resolvedToolName,
                             input: value.input,
                           },
                         })
@@ -176,7 +183,7 @@ export namespace SessionProcessor {
                           "doom_loop",
                           value.toolCallId,
                           {
-                            tool: value.toolName,
+                            tool: resolvedToolName,
                             input: value.input,
                           },
                           `You seem to be stuck in a doom loop, please stop repeating the same action`,

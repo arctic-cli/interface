@@ -22,6 +22,7 @@ import { EOL } from "os"
 import { SessionCommand } from "./cli/cmd/session"
 import { maybeImportClaudeAgents, maybeImportClaudeCommands, maybeImportClaudeMcp } from "./cli/claude-import"
 import { maybeImportExternalAuth } from "./cli/external-auth-import"
+import { maybeImportOpenCodeConfig } from "./cli/opencode-config-import"
 
 process.on("unhandledRejection", (e) => {
   Log.Default.error("rejection", {
@@ -82,6 +83,7 @@ const cli = yargs(hideBin(process.argv))
     await maybeImportClaudeAgents()
     await maybeImportClaudeMcp()
     await maybeImportExternalAuth()
+    await maybeImportOpenCodeConfig()
   })
   .usage("\n" + UI.logo())
   .command(McpCommand)

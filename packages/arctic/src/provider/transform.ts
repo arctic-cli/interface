@@ -15,6 +15,43 @@ function mimeToModality(mime: string): Modality | undefined {
 }
 
 export namespace ProviderTransform {
+  const ANTHROPIC_OAUTH_TOOL_RENAMES: Record<string, string> = {
+    bash: "bas_",
+    read: "rea_",
+    edit: "edi_",
+    glob: "glo_",
+    grep: "gre_",
+    task: "tas_",
+    write: "writ_",
+    batch: "batc_",
+    patch: "patc_",
+    question: "questio_",
+    todowrite: "todowrit_",
+    todoread: "todorea_",
+    webfetch: "webfetc_",
+    websearch: "websearc_",
+    codesearch: "codesearc_",
+    skill: "skil_",
+    invalid: "invali_",
+    lsp: "ls_",
+    list: "lis_",
+  }
+  const ANTHROPIC_OAUTH_TOOL_RENAMES_REVERSE = Object.fromEntries(
+    Object.entries(ANTHROPIC_OAUTH_TOOL_RENAMES).map(([key, value]) => [value, key]),
+  )
+
+  export function anthropicOauthToolName(name: string) {
+    return ANTHROPIC_OAUTH_TOOL_RENAMES[name] ?? name
+  }
+
+  export function anthropicOauthToolNameReverse(name: string) {
+    return ANTHROPIC_OAUTH_TOOL_RENAMES_REVERSE[name] ?? name
+  }
+
+  export function anthropicOauthToolRenamed(name: string) {
+    return Object.prototype.hasOwnProperty.call(ANTHROPIC_OAUTH_TOOL_RENAMES, name)
+  }
+
   function normalizeMessages(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
     if (model.api.id.includes("claude")) {
       return msgs.map((msg) => {
