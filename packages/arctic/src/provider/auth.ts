@@ -41,8 +41,20 @@ export namespace ProviderAuth {
     // Add ollama as a special local provider with custom connect flow
     result["ollama"] = [
       {
-        type: "api", // Uses API type but has custom handling
+        type: "api",
         label: "Connect to local instance",
+      },
+    ]
+    result["minimax"] = [
+      {
+        type: "api",
+        label: "API Key",
+      },
+    ]
+    result["minimax-coding-plan"] = [
+      {
+        type: "api",
+        label: "API Key",
       },
     ]
     return result

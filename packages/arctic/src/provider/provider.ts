@@ -434,6 +434,22 @@ export namespace Provider {
         },
       }
     },
+    minimax: async () => {
+      return {
+        autoload: false,
+        options: {
+          baseURL: "https://api.minimax.io/anthropic/v1",
+        },
+      }
+    },
+    "minimax-coding-plan": async () => {
+      return {
+        autoload: false,
+        options: {
+          baseURL: "https://api.minimax.io/anthropic/v1",
+        },
+      }
+    },
     ollama: async () => {
       const auth = await Auth.get("ollama")
       if (auth?.type !== "ollama") return { autoload: false }
@@ -1787,6 +1803,78 @@ export namespace Provider {
           models: ollamaModels,
         }
       }
+    }
+
+    database["minimax"] = {
+      id: "minimax",
+      name: "MiniMax",
+      source: "custom",
+      env: ["MINIMAX_API_KEY"],
+      options: {
+        baseURL: "https://api.minimax.io/anthropic/v1",
+      },
+      models: {
+        "MiniMax-M2.1": {
+          id: "MiniMax-M2.1",
+          providerID: "minimax",
+          name: "MiniMax-M2.1",
+          api: {
+            id: "MiniMax-M2.1",
+            url: "https://api.minimax.io/anthropic/v1",
+            npm: "@ai-sdk/anthropic",
+          },
+          status: "active",
+          capabilities: {
+            temperature: true,
+            reasoning: false,
+            attachment: false,
+            toolcall: true,
+            input: { text: true, audio: false, image: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false,
+          },
+          cost: { input: 0.3, output: 1.2, cache: { read: 0, write: 0 } },
+          limit: { context: 128000, output: 8192 },
+          options: {},
+          headers: {},
+        },
+      },
+    }
+
+    database["minimax-coding-plan"] = {
+      id: "minimax-coding-plan",
+      name: "MiniMax Coding Plan",
+      source: "custom",
+      env: ["MINIMAX_CODING_PLAN_API_KEY", "MINIMAX_API_KEY"],
+      options: {
+        baseURL: "https://api.minimax.io/anthropic/v1",
+      },
+      models: {
+        "MiniMax-M2.1": {
+          id: "MiniMax-M2.1",
+          providerID: "minimax-coding-plan",
+          name: "MiniMax-M2.1 (Coding Plan)",
+          api: {
+            id: "MiniMax-M2.1",
+            url: "https://api.minimax.io/anthropic/v1",
+            npm: "@ai-sdk/anthropic",
+          },
+          status: "active",
+          capabilities: {
+            temperature: true,
+            reasoning: false,
+            attachment: false,
+            toolcall: true,
+            input: { text: true, audio: false, image: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false,
+          },
+          cost: { input: 0.3, output: 1.2, cache: { read: 0, write: 0 } },
+          limit: { context: 128000, output: 8192 },
+          options: {},
+          headers: {},
+        },
+      },
     }
 
     const disabled = new Set(config.disabled_providers ?? [])

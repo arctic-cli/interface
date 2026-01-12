@@ -1687,6 +1687,24 @@ export namespace Server {
             }
           }
 
+          if (!disabled.has("minimax") && (!enabled || enabled.has("minimax"))) {
+            filteredProviders["minimax"] = {
+              id: "minimax",
+              name: "MiniMax",
+              env: ["MINIMAX_API_KEY"],
+              models: {},
+            }
+          }
+
+          if (!disabled.has("minimax-coding-plan") && (!enabled || enabled.has("minimax-coding-plan"))) {
+            filteredProviders["minimax-coding-plan"] = {
+              id: "minimax-coding-plan",
+              name: "MiniMax Coding Plan",
+              env: ["MINIMAX_CODING_PLAN_API_KEY"],
+              models: {},
+            }
+          }
+
           const connected = await Provider.list()
           const providers = Object.assign(
             mapValues(filteredProviders, (x) => Provider.fromModelsDevProvider(x)),

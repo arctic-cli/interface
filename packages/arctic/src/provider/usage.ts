@@ -82,6 +82,8 @@ export namespace ProviderUsage {
   const usageFetchers: { [key: string]: UsageFetcher } = {
     codex: fetchCodexUsage,
     "zai-coding-plan": fetchSessionUsage,
+    "minimax-coding-plan": fetchMinimaxUsage,
+    minimax: fetchMinimaxUsage,
     anthropic: fetchAnthropicUsage,
     "@ai-sdk/anthropic": fetchAnthropicUsage, // Alternative anthropic provider name
     openrouter: fetchSessionUsage, // Session-based tracking
@@ -288,6 +290,7 @@ export namespace ProviderUsage {
 
   const ZAI_USAGE_LIMITS_URL = "https://api.z.ai/api/monitor/usage/quota/limit"
   const ANTHROPIC_OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+  const MINIMAX_USAGE_URL = "https://platform.minimax.io/v1/api/openplatform/coding_plan/remains"
 
   async function fetchZaiUsageLimits(provider: Provider.Info): Promise<{
     planType?: string
@@ -424,6 +427,131 @@ export namespace ProviderUsage {
       default:
         return type.replace(/_/g, " ").toLowerCase()
     }
+  }
+
+  async function fetchMinimaxUsage(input: {
+    provider: Provider.Info
+    sessionID?: string
+    timePeriod?: TimePeriod
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const sessionData = await fetchSessionUsage(input)
+
+    let limitSummary:
+      | {
+          planType?: string
+          allowed?: boolean
+          limitReached?: boolean
+          limits?: { primary?: RateLimitWindowSummary }
+        }
+      | undefined
+    let limitError: string | undefined
+
+    const auth = await Auth.get(input.provider.id)
+    if (auth?.type === "api" && auth.groupId) {
+      const apiKey = auth.key || input.provider.key || input.provider.options?.apiKey
+      if (apiKey) {
+        limitSummary = await fetchMinimaxUsageLimits(auth.groupId, apiKey).catch((error) => {
+          limitError = error instanceof Error ? error.message : String(error)
+          return undefined
+        })
+      }
+    }
+
+    const record: Omit<Record, "providerID" | "providerName" | "fetchedAt"> = {
+      ...sessionData,
+    }
+
+    if (limitSummary) {
+      record.planType = limitSummary.planType
+      record.allowed = limitSummary.allowed
+      record.limitReached = limitSummary.limitReached
+      record.limits = limitSummary.limits
+    }
+
+    if (limitError) {
+      record.error = limitError
+    }
+
+    return record
+  }
+
+  async function fetchMinimaxUsageLimits(groupId: string, apiKey: string): Promise<{
+    planType?: string
+    allowed?: boolean
+    limitReached?: boolean
+    limits?: { primary?: RateLimitWindowSummary }
+  }> {
+    const url = `${MINIMAX_USAGE_URL}?GroupId=${encodeURIComponent(groupId)}`
+    const response = await globalThis.fetch(url, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Referer: "https://platform.minimax.io/user-center/payment/coding-plan",
+        Accept: "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Authorization failed. Please check your MiniMax API key.")
+      }
+      throw new Error(`Failed to fetch MiniMax usage limits: ${response.statusText}`)
+    }
+
+    const payload = (await response.json().catch(() => null)) as any
+    if (!payload || payload.base_resp?.status_code !== 0) {
+      const errorMsg = payload?.base_resp?.status_msg || "Unknown error"
+      throw new Error(`MiniMax API error: ${errorMsg}`)
+    }
+
+    const modelRemains = Array.isArray(payload.model_remains) ? payload.model_remains : []
+    if (modelRemains.length === 0) {
+      return {}
+    }
+
+    const model = modelRemains[0]
+    const totalCount = typeof model.current_interval_total_count === "number" ? model.current_interval_total_count : 0
+    const usedCount = typeof model.current_interval_usage_count === "number" ? model.current_interval_usage_count : 0
+    const remainsTime = typeof model.remains_time === "number" ? model.remains_time : 0
+    const modelName = typeof model.model_name === "string" ? model.model_name : "MiniMax"
+
+    const usedPercent = totalCount > 0 ? (usedCount / totalCount) * 100 : 0
+
+    const limitReached = usedCount >= totalCount && totalCount > 0
+
+    const planType = `${modelName}\n- ${usedCount.toLocaleString()} / ${totalCount.toLocaleString()} requests (${usedPercent.toFixed(1)}%)\n- Time remaining: ${formatMilliseconds(remainsTime)}`
+
+    const resetsAt = remainsTime > 0 ? Math.floor((Date.now() + remainsTime) / 1000) : undefined
+
+    return {
+      planType,
+      allowed: !limitReached,
+      limitReached,
+      limits: {
+        primary: {
+          usedPercent,
+          resetsAt,
+          label: "Request quota",
+        },
+      },
+    }
+  }
+
+  function formatMilliseconds(ms: number): string {
+    const seconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) {
+      return `${days}d ${hours % 24}h`
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`
+    }
+    return `${seconds}s`
   }
 
   async function ensureAnthropicAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {

@@ -408,6 +408,12 @@ export const AuthLoginCommand = cmd({
           env: [],
           models: {},
         }
+        providers["minimax-coding-plan"] = {
+          id: "minimax-coding-plan",
+          name: "MiniMax Coding Plan",
+          env: [],
+          models: {},
+        }
 
         let provider = args.url
 
@@ -438,11 +444,6 @@ export const AuthLoginCommand = cmd({
             prompts.outro("Done")
             return
           }
-          // If it's not a known provider AND fetch failed/returned nothing, we might want to warn or fall through?
-          // But looking at original code, it assumed it was a URL.
-          // However, if the user typed a provider name that isn't loaded yet or made a typo, treating it as URL might be confusing.
-          // Let's assume if it contains dots or slashes it's a URL, otherwise it's a provider ID?
-          // For now, relying on providers list is safer.
         }
 
         if (!provider) {
@@ -454,6 +455,7 @@ export const AuthLoginCommand = cmd({
             google: 4,
             antigravity: 5,
             openrouter: 5,
+            "minimax-coding-plan": 6,
             ollama: 7,
             vercel: 6,
             alibaba: 8,
@@ -477,6 +479,7 @@ export const AuthLoginCommand = cmd({
                     anthropic: "Claude Max or API key",
                     "github-copilot": "usage tracking",
                     ollama: "local models",
+                    "minimax-coding-plan": "OpenAI-compatible",
                   }[x.id],
                 })),
               ),

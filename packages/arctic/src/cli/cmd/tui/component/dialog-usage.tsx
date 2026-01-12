@@ -1,6 +1,6 @@
 import { ProviderUsage } from "@/provider/usage"
 import { Locale } from "@/util/locale"
-import { ScrollBoxRenderable, TextAttributes, InputRenderable } from "@opentui/core"
+import { InputRenderable, ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useSync } from "@tui/context/sync"
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount, untrack } from "solid-js"
@@ -17,6 +17,8 @@ const MAX_TAB_NAME_LENGTH = 15
 const CODING_PLAN_PROVIDERS = new Set([
   "codex",
   "zai-coding-plan",
+  "minimax",
+  "minimax-coding-plan",
   "anthropic",
   "@ai-sdk/anthropic",
   "github-copilot",
@@ -357,7 +359,14 @@ export function DialogUsage() {
 function UsageCard(props: { record: ProviderUsage.Record }) {
   const { theme } = useTheme()
   const status = createMemo(() => describeStatus(props.record))
-  const limits = createMemo(() => describeLimits(props.record.limits))
+  const limits = createMemo(() => describeLimits(props.record.limits, props.record.providerID))
+
+  // check if this is minimax with quota limits configured
+  const isMiniMaxWithLimits = createMemo(() => {
+    const isMinimax = props.record.providerID === "minimax" || props.record.providerID === "minimax-coding-plan"
+    const hasLimits = !!props.record.limits?.primary
+    return isMinimax && hasLimits
+  })
 
   const costLabel = "Session Cost"
 
@@ -376,68 +385,72 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
       <Show when={props.record.credits}>
         {(credits) => <text fg={theme.text}>Credits: {describeCredits(credits())}</text>}
       </Show>
-      <Show when={props.record.tokenUsage}>
-        {(usage) => (
-          <box>
-            <text fg={theme.textMuted}>Token Usage</text>
-            <box marginLeft={2} flexDirection="column">
-              <Show when={usage().total !== undefined}>
-                <text fg={theme.text}>
-                  <b>Total:</b> {formatTokenNumber(usage().total!)}
-                </text>
-              </Show>
-              <Show when={usage().input !== undefined}>
-                <text fg={theme.text}>
-                  <b>Input:</b> {formatTokenNumber(usage().input!)}
-                </text>
-              </Show>
-              <Show when={usage().output !== undefined}>
-                <text fg={theme.text}>
-                  <b>Output:</b> {formatTokenNumber(usage().output!)}
-                </text>
-              </Show>
-              <Show when={usage().cached !== undefined}>
-                <text fg={theme.text}>
-                  <b>Cached:</b> {formatTokenNumber(usage().cached!)}
-                </text>
-              </Show>
+      <Show when={!isMiniMaxWithLimits()}>
+        <Show when={props.record.tokenUsage}>
+          {(usage) => (
+            <box>
+              <text fg={theme.textMuted}>Token Usage</text>
+              <box marginLeft={2} flexDirection="column">
+                <Show when={usage().total !== undefined}>
+                  <text fg={theme.text}>
+                    <b>Total:</b> {formatTokenNumber(usage().total!)}
+                  </text>
+                </Show>
+                <Show when={usage().input !== undefined}>
+                  <text fg={theme.text}>
+                    <b>Input:</b> {formatTokenNumber(usage().input!)}
+                  </text>
+                </Show>
+                <Show when={usage().output !== undefined}>
+                  <text fg={theme.text}>
+                    <b>Output:</b> {formatTokenNumber(usage().output!)}
+                  </text>
+                </Show>
+                <Show when={usage().cached !== undefined}>
+                  <text fg={theme.text}>
+                    <b>Cached:</b> {formatTokenNumber(usage().cached!)}
+                  </text>
+                </Show>
+              </box>
             </box>
-          </box>
-        )}
+          )}
+        </Show>
       </Show>
-      <Show when={props.record.costSummary}>
-        {(cost) => (
-          <box>
-            <text fg={theme.textMuted}>{costLabel}</text>
-            <box marginLeft={2} flexDirection="column">
-              <Show when={cost().totalCost !== undefined}>
-                <text fg={theme.text}>
-                  <b>Total:</b> {formatCurrency(cost().totalCost!)}
-                </text>
-              </Show>
-              <Show when={cost().inputCost !== undefined && (cost().inputCost ?? 0) > 0}>
-                <text fg={theme.text}>
-                  <b>Input:</b> {formatCurrency(cost().inputCost ?? 0)}
-                </text>
-              </Show>
-              <Show when={cost().outputCost !== undefined && (cost().outputCost ?? 0) > 0}>
-                <text fg={theme.text}>
-                  <b>Output:</b> {formatCurrency(cost().outputCost ?? 0)}
-                </text>
-              </Show>
-              <Show when={cost().cacheReadCost !== undefined && (cost().cacheReadCost ?? 0) > 0}>
-                <text fg={theme.text}>
-                  <b>Cache Read:</b> {formatCurrency(cost().cacheReadCost ?? 0)}
-                </text>
-              </Show>
-              <Show when={cost().cacheCreationCost !== undefined && (cost().cacheCreationCost ?? 0) > 0}>
-                <text fg={theme.text}>
-                  <b>Cache Write:</b> {formatCurrency(cost().cacheCreationCost ?? 0)}
-                </text>
-              </Show>
+      <Show when={!isMiniMaxWithLimits()}>
+        <Show when={props.record.costSummary}>
+          {(cost) => (
+            <box>
+              <text fg={theme.textMuted}>{costLabel}</text>
+              <box marginLeft={2} flexDirection="column">
+                <Show when={cost().totalCost !== undefined}>
+                  <text fg={theme.text}>
+                    <b>Total:</b> {formatCurrency(cost().totalCost!)}
+                  </text>
+                </Show>
+                <Show when={cost().inputCost !== undefined && (cost().inputCost ?? 0) > 0}>
+                  <text fg={theme.text}>
+                    <b>Input:</b> {formatCurrency(cost().inputCost ?? 0)}
+                  </text>
+                </Show>
+                <Show when={cost().outputCost !== undefined && (cost().outputCost ?? 0) > 0}>
+                  <text fg={theme.text}>
+                    <b>Output:</b> {formatCurrency(cost().outputCost ?? 0)}
+                  </text>
+                </Show>
+                <Show when={cost().cacheReadCost !== undefined && (cost().cacheReadCost ?? 0) > 0}>
+                  <text fg={theme.text}>
+                    <b>Cache Read:</b> {formatCurrency(cost().cacheReadCost ?? 0)}
+                  </text>
+                </Show>
+                <Show when={cost().cacheCreationCost !== undefined && (cost().cacheCreationCost ?? 0) > 0}>
+                  <text fg={theme.text}>
+                    <b>Cache Write:</b> {formatCurrency(cost().cacheCreationCost ?? 0)}
+                  </text>
+                </Show>
+              </box>
             </box>
-          </box>
-        )}
+          )}
+        </Show>
       </Show>
       <Show when={limits().length && props.record.providerID !== "z.ai"}>
         <box>
@@ -483,12 +496,16 @@ function describeCredits(credits: ProviderUsage.CreditsSummary): string {
   return "available"
 }
 
-function describeLimits(limits: ProviderUsage.Record["limits"]): { label: string; detail: string; reset?: string }[] {
+function describeLimits(
+  limits: ProviderUsage.Record["limits"],
+  providerID?: string,
+): { label: string; detail: string; reset?: string }[] {
   if (!limits) return []
+  const isMinimax = providerID === "minimax" || providerID === "minimax-coding-plan"
   const rows: { label: string; detail: string; reset?: string }[] = []
-  const primary = describeLimit(limits.primary?.label ?? "Primary", limits.primary)
+  const primary = describeLimit(limits.primary?.label ?? "Primary", limits.primary, isMinimax)
   if (primary) rows.push(primary)
-  const secondary = describeLimit(limits.secondary?.label ?? "Secondary", limits.secondary)
+  const secondary = describeLimit(limits.secondary?.label ?? "Secondary", limits.secondary, isMinimax)
   if (secondary) rows.push(secondary)
   return rows
 }
@@ -496,10 +513,12 @@ function describeLimits(limits: ProviderUsage.Record["limits"]): { label: string
 function describeLimit(
   label: string,
   window?: ProviderUsage.RateLimitWindowSummary,
+  isMinimax = false,
 ): { label: string; detail: string; reset?: string } | undefined {
   if (!window) return undefined
-  const remaining = typeof window.usedPercent === "number" ? Math.max(0, 100 - window.usedPercent) : undefined
-  const detail = remaining === undefined ? "usage unknown" : `${remaining.toFixed(0)}% ${progressBar(remaining)}`
+  const usedPercent = window.usedPercent ?? 0
+  const remaining = isMinimax ? usedPercent : Math.max(0, 100 - usedPercent)
+  const detail = `${remaining.toFixed(0)}% ${progressBar(remaining)}`
   return {
     label,
     detail,

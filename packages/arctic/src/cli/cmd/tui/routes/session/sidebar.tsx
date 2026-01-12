@@ -155,19 +155,30 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
   })
 
   const SUPPORTED_USAGE_PROVIDERS = [
-    "codex",
-    "zai-coding-plan",
+    "alibaba",
     "anthropic",
     "@ai-sdk/anthropic",
+    "antigravity",
+    "codex",
+    "github-copilot",
     "google",
     "kimi-for-coding",
-    "github-copilot",
-    "antigravity",
-    "alibaba",
+    "minimax",
+    "minimax-coding-plan",
+    "zai-coding-plan",
   ]
 
-  const showUsageLimits = createMemo(() => {
+  const usageProviderID = createMemo(() => {
     const provider = currentProvider()
+    if (provider === "minimax") {
+      const hasCodingPlan = sync.data.provider.some((item) => item.id === "minimax-coding-plan")
+      return hasCodingPlan ? "minimax-coding-plan" : provider
+    }
+    return provider
+  })
+
+  const showUsageLimits = createMemo(() => {
+    const provider = usageProviderID()
     return provider && SUPPORTED_USAGE_PROVIDERS.includes(provider)
   })
 
@@ -175,6 +186,13 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
     const safe = Math.max(0, Math.min(100, percent ?? 0))
     const filled = Math.round((safe / 100) * USAGE_BAR_SEGMENTS)
     return `${USAGE_BAR_FILLED.repeat(filled)}${USAGE_BAR_EMPTY.repeat(USAGE_BAR_SEGMENTS - filled)}`
+  }
+
+  const usageColor = (remaining: number | null | undefined) => {
+    const r = remaining ?? 100
+    if (r > 50) return theme.success
+    if (r > 20) return theme.warning
+    return theme.error
   }
 
   const formatTimeRemaining = (resetsAt: number | null | undefined) => {
@@ -209,7 +227,7 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
 
   createEffect(() => {
     if (!expanded.usage || !showUsageLimits()) return
-    const provider = currentProvider()
+    const provider = usageProviderID()
     if (!provider || usageLoading()) return
 
     // Only fetch usage when session is idle (not during active generation)
@@ -571,28 +589,50 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
                       </Show>
 
                       <Show when={usageData()?.limits?.primary}>
-                        <text fg={theme.textMuted}>
-                          {currentProvider() === "codex" ? "5h cycle" : "Primary"}:{" "}
-                          {(100 - (usageData()!.limits!.primary!.usedPercent ?? 0)).toFixed(0)}%{" "}
-                          {usageBar(100 - (usageData()!.limits!.primary!.usedPercent ?? 0))}
-                        </text>
-                        <Show when={usageData()!.limits!.primary!.resetsAt}>
-                          <text fg={theme.textMuted}>
-                            {formatTimeRemaining(usageData()!.limits!.primary!.resetsAt)}
-                          </text>
-                        </Show>
+                        {(() => {
+                          const usedPercent = usageData()!.limits!.primary!.usedPercent ?? 0
+                          const isMinimax = usageProviderID() === "minimax" || usageProviderID() === "minimax-coding-plan"
+                          const remaining = isMinimax ? usedPercent : 100 - usedPercent
+                          const color = usageColor(remaining)
+                          const critical = remaining < 10
+                          return (
+                            <>
+                              <text fg={theme.textMuted}>
+                                {currentProvider() === "codex" ? "5h cycle" : "Primary"}:{" "}
+                                <span style={{ fg: color }}>{remaining.toFixed(0)}%</span>{" "}
+                                {usageBar(remaining)}
+                              </text>
+                              <Show when={usageData()!.limits!.primary!.resetsAt}>
+                                <text fg={critical ? theme.error : theme.textMuted}>
+                                  {formatTimeRemaining(usageData()!.limits!.primary!.resetsAt)}
+                                </text>
+                              </Show>
+                            </>
+                          )
+                        })()}
                       </Show>
                       <Show when={usageData()?.limits?.secondary}>
-                        <text fg={theme.textMuted}>
-                          {currentProvider() === "codex" ? "Weekly cycle" : "Secondary"}:{" "}
-                          {(100 - (usageData()!.limits!.secondary!.usedPercent ?? 0)).toFixed(0)}%{" "}
-                          {usageBar(100 - (usageData()!.limits!.secondary!.usedPercent ?? 0))}
-                        </text>
-                        <Show when={usageData()!.limits!.secondary!.resetsAt}>
-                          <text fg={theme.textMuted}>
-                            {formatTimeRemaining(usageData()!.limits!.secondary!.resetsAt)}
-                          </text>
-                        </Show>
+                        {(() => {
+                          const usedPercent = usageData()!.limits!.secondary!.usedPercent ?? 0
+                          const isMinimax = usageProviderID() === "minimax" || usageProviderID() === "minimax-coding-plan"
+                          const remaining = isMinimax ? usedPercent : 100 - usedPercent
+                          const color = usageColor(remaining)
+                          const critical = remaining < 10
+                          return (
+                            <>
+                              <text fg={theme.textMuted}>
+                                {currentProvider() === "codex" ? "Weekly cycle" : "Secondary"}:{" "}
+                                <span style={{ fg: color }}>{remaining.toFixed(0)}%</span>{" "}
+                                {usageBar(remaining)}
+                              </text>
+                              <Show when={usageData()!.limits!.secondary!.resetsAt}>
+                                <text fg={critical ? theme.error : theme.textMuted}>
+                                  {formatTimeRemaining(usageData()!.limits!.secondary!.resetsAt)}
+                                </text>
+                              </Show>
+                            </>
+                          )
+                        })()}
                       </Show>
                       <Show when={usageData()?.credits?.unlimited}>
                         <text fg={theme.success}>Unlimited credits</text>
@@ -602,7 +642,14 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
                       >
                         <text fg={theme.textMuted}>Balance: {usageData()!.credits!.balance}</text>
                       </Show>
-                      <Show when={usageData()?.limitReached}>
+                      <Show
+                        when={usageData()?.limitReached && (() => {
+                          const usedPercent = usageData()!.limits?.primary?.usedPercent ?? 0
+                          const isMinimax = usageProviderID() === "minimax" || usageProviderID() === "minimax-coding-plan"
+                          const remaining = isMinimax ? usedPercent : 100 - usedPercent
+                          return remaining < 100
+                        })()}
+                      >
                         <text fg={theme.error}>⚠ Limit reached</text>
                       </Show>
                     </box>

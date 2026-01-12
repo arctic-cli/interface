@@ -1,15 +1,15 @@
-import { createMemo, createSignal, onMount, Show } from "solid-js"
-import { useSync } from "@tui/context/sync"
-import { map, pipe, sortBy } from "remeda"
-import { DialogSelect } from "@tui/ui/dialog-select"
-import { useDialog } from "@tui/ui/dialog"
-import { useSDK } from "../context/sdk"
-import { DialogPrompt } from "../ui/dialog-prompt"
-import { useTheme } from "../context/theme"
-import { TextAttributes } from "@opentui/core"
-import type { ProviderAuthAuthorization } from "@arctic-cli/sdk/v2"
-import { DialogModel } from "./dialog-model"
 import { openBrowserUrl } from "@/auth/codex-oauth/auth/browser"
+import type { ProviderAuthAuthorization } from "@arctic-cli/sdk/v2"
+import { TextAttributes } from "@opentui/core"
+import { useSync } from "@tui/context/sync"
+import { useDialog } from "@tui/ui/dialog"
+import { DialogSelect } from "@tui/ui/dialog-select"
+import { map, pipe, sortBy } from "remeda"
+import { createMemo, createSignal, onMount, Show } from "solid-js"
+import { useSDK } from "../context/sdk"
+import { useTheme } from "../context/theme"
+import { DialogPrompt } from "../ui/dialog-prompt"
+import { DialogModel } from "./dialog-model"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   arctic: 0,
@@ -88,6 +88,9 @@ export function createDialogProviderOptions() {
             // Special case for ollama - use custom connection flow
             if (provider.id === "ollama") {
               return dialog.replace(() => <OllamaMethod providerID={provider.id} title={method.label} />)
+            }
+            if (provider.id === "minimax-coding-plan" || provider.id === "minimax") {
+              return dialog.replace(() => <MinimaxMethod providerID={provider.id} title={method.label} />)
             }
             return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} />)
           }
@@ -359,5 +362,70 @@ function OllamaConnectingStep(props: OllamaConnectingStepProps) {
         <text fg={theme.textMuted}>Press esc to go back</text>
       </Show>
     </box>
+  )
+}
+
+interface MinimaxMethodProps {
+  providerID: string
+  title: string
+}
+function MinimaxMethod(props: MinimaxMethodProps) {
+  const dialog = useDialog()
+  const { theme } = useTheme()
+
+  return (
+    <DialogPrompt
+      title={props.title}
+      placeholder="API key"
+      description={() => (
+        <box gap={1}>
+          <text fg={theme.textMuted}>Enter your MiniMax API key</text>
+        </box>
+      )}
+      onConfirm={(value) => {
+        if (!value) return
+        dialog.replace(() => <MinimaxGroupIdStep providerID={props.providerID} apiKey={value} />)
+      }}
+    />
+  )
+}
+
+interface MinimaxGroupIdStepProps {
+  providerID: string
+  apiKey: string
+}
+function MinimaxGroupIdStep(props: MinimaxGroupIdStepProps) {
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const sync = useSync()
+  const { theme } = useTheme()
+
+  return (
+    <DialogPrompt
+      title="Group ID (Optional)"
+      placeholder="Leave empty to skip"
+      description={() => (
+        <box gap={1}>
+          <text fg={theme.textMuted}>Optional: Enter your Group ID to enable usage tracking.</text>
+          <text fg={theme.textMuted}>Find it at: https://platform.minimax.io/user-center/basic-information</text>
+        </box>
+      )}
+      onConfirm={async (groupId) => {
+        const auth: any = {
+          type: "api",
+          key: props.apiKey,
+        }
+        if (groupId && groupId.trim()) {
+          auth.groupId = groupId.trim()
+        }
+        await sdk.client.auth.set({
+          providerID: props.providerID,
+          auth,
+        })
+        await sdk.client.instance.dispose()
+        await sync.bootstrap()
+        dialog.replace(() => <DialogModel providerID={props.providerID} />)
+      }}
+    />
   )
 }

@@ -1899,6 +1899,7 @@ export type OAuth = {
 export type ApiAuth = {
   type: "api"
   key: string
+  groupId?: string
 }
 
 export type WellKnownAuth = {

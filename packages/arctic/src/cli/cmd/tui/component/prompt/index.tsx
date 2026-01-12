@@ -351,12 +351,21 @@ export function Prompt(props: PromptProps) {
     let cancelled = false
     const fetchLimits = async () => {
       try {
+        const providerID = (() => {
+          if (model.providerID === "minimax") {
+            const hasCodingPlan = sync.data.provider.some((item) => item.id === "minimax-coding-plan")
+            return hasCodingPlan ? "minimax-coding-plan" : model.providerID
+          }
+          return model.providerID
+        })()
+
         const record = await fetchUsageRecord({
           baseUrl: sdk.url,
           directory: sync.data.path.directory,
           sessionID,
-          providerID: model.providerID,
+          providerID,
         })
+
 
         if (cancelled) return
 
@@ -1698,11 +1707,19 @@ export function Prompt(props: PromptProps) {
                 <text fg={theme.textMuted}>·</text>
                 {(() => {
                   const limits = usageLimits()!
+                  const model = local.model.current()
+                  const isMinimax = model?.providerID === "minimax" || model?.providerID === "minimax-coding-plan"
+                  
+                  // calculate remaining percentage
+                  // for minimax: show usedPercent directly as "left" (counterintuitive but requested)
+                  // for others: calculate 100 - usedPercent to get remaining
                   const remaining = limits.percent !== undefined ? Math.max(0, 100 - limits.percent) : undefined
-                  const color = remaining !== undefined && remaining <= 15 ? theme.error : theme.textMuted
+                  const percentValue = isMinimax ? (limits.percent ?? undefined) : remaining
+                  
+                   const color = percentValue !== undefined && percentValue <= 15 ? theme.error : theme.textMuted
                   const label = (() => {
-                    if (remaining !== undefined) {
-                      return `${remaining.toFixed(0)}% left${limits.timeLeft ? ` (${limits.timeLeft})` : ""}`
+                    if (percentValue !== undefined) {
+                      return `${percentValue.toFixed(0)}% left${limits.timeLeft ? ` (${limits.timeLeft})` : ""}`
                     }
                     return limits.timeLeft ? `resets in ${limits.timeLeft}` : ""
                   })()
