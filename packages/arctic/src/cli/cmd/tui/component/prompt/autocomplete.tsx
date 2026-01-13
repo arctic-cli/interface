@@ -1,15 +1,15 @@
-import type { BoxRenderable, TextareaRenderable, KeyEvent } from "@opentui/core"
-import fuzzysort from "fuzzysort"
-import { firstBy } from "remeda"
-import { createMemo, createResource, createEffect, onMount, onCleanup, For, Show, createSignal } from "solid-js"
-import { createStore } from "solid-js/store"
-import { useSDK } from "@tui/context/sdk"
-import { useSync } from "@tui/context/sync"
-import { useTheme, selectedForeground } from "@tui/context/theme"
+import { Locale } from "@/util/locale"
+import type { BoxRenderable, KeyEvent, TextareaRenderable } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/solid"
 import { SplitBorder } from "@tui/component/border"
 import { useCommandDialog } from "@tui/component/dialog-command"
-import { useTerminalDimensions } from "@opentui/solid"
-import { Locale } from "@/util/locale"
+import { useSDK } from "@tui/context/sdk"
+import { useSync } from "@tui/context/sync"
+import { selectedForeground, useTheme } from "@tui/context/theme"
+import fuzzysort from "fuzzysort"
+import { firstBy } from "remeda"
+import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup, onMount } from "solid-js"
+import { createStore } from "solid-js/store"
 import type { PromptInfo } from "./history"
 
 export type AutocompleteRef = {
@@ -420,6 +420,11 @@ export function Autocomplete(props: {
         onSelect: () => command.trigger("provider.connect"),
       },
       {
+        display: "/connections",
+        description: "manage connections",
+        onSelect: () => command.trigger("provider.connections"),
+      },
+      {
         display: "/config-export",
         aliases: ["/backup-config", "/save-config"],
         description: "export config as zip file",
@@ -524,6 +529,15 @@ export function Autocomplete(props: {
             hide()
             return
           }
+        } else {
+          const trimmed = value.trim()
+          if ((trimmed === "/" || trimmed === "／") && props.input().cursorOffset <= 1) {
+            command.keybinds(false)
+            setStore({
+              visible: "/",
+              index: 0,
+            })
+          }
         }
       },
       onKeyDown(e: KeyEvent) {
@@ -563,7 +577,8 @@ export function Autocomplete(props: {
             if (canTrigger) show("@")
           }
 
-          if (e.name === "/") {
+          // @ts-ignore - sequence/char might not be in the type definition but present at runtime
+          if (e.name === "/" || e.name === "slash" || e.sequence === "/" || e.char === "/") {
             if (props.input().cursorOffset === 0) show("/")
           }
         }
@@ -580,9 +595,9 @@ export function Autocomplete(props: {
     <box
       visible={store.visible !== false}
       position="absolute"
-      top={position().y - height()}
-      left={position().x}
-      width={position().width}
+      bottom="100%"
+      left={0}
+      width="100%"
       zIndex={100}
       {...SplitBorder}
       borderColor={theme.border}

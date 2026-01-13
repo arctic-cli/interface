@@ -53,11 +53,27 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
     const agent = iife(() => {
       const agents = createMemo(() => sync.data.agent)
+      const file = Bun.file(path.join(Global.Path.state, "agent.json"))
+
       const [agentStore, setAgentStore] = createStore<{
         current: string
       }>({
-        current: agents()[0].name,
+        current: agents()[0]?.name ?? "general",
       })
+
+      file
+        .json()
+        .then((x) => {
+          if (x.last && agents().some((a) => a.name === x.last)) {
+            setAgentStore("current", x.last)
+          }
+        })
+        .catch(() => {})
+
+      function saveLastAgent(name: string) {
+        Bun.write(file, JSON.stringify({ last: name }))
+      }
+
       const { values } = useTheme()
       return {
         list() {
@@ -74,6 +90,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               duration: 3000,
             })
           setAgentStore("current", name)
+          saveLastAgent(name)
         },
         move(direction: 1 | -1) {
           batch(() => {
@@ -82,12 +99,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             if (next >= agents().length) next = 0
             const value = agents()[next]
             setAgentStore("current", value.name)
+            saveLastAgent(value.name)
           })
         },
         color(name: string) {
           const agent = agents().find((x) => x.name === name)
           if (agent?.color) return RGBA.fromHex(agent.color)
           return values().primary
+        },
+        restore(sessionAgent?: string) {
+          if (sessionAgent && agents().some((a) => a.name === sessionAgent)) {
+            setAgentStore("current", sessionAgent)
+          }
         },
       }
     })

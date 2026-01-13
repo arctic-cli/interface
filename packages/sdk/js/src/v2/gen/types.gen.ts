@@ -682,6 +682,7 @@ export type Session = {
   projectID: string
   directory: string
   parentID?: string
+  agent?: string
   summary?: {
     additions: number
     deletions: number
@@ -2541,6 +2542,7 @@ export type SessionGetResponse = SessionGetResponses[keyof SessionGetResponses]
 export type SessionUpdateData = {
   body?: {
     title?: string
+    agent?: string
     time?: {
       archived?: number
     }

@@ -13,7 +13,9 @@ import { useDialog } from "../ui/dialog"
 const BAR_SEGMENTS = 20
 const BAR_FILLED = "█"
 const BAR_EMPTY = "░"
-const MAX_TAB_NAME_LENGTH = 15
+const MAX_TAB_NAME_LENGTH = 12
+const TAB_PADDING = 2
+const TAB_GAP = 1
 const CODING_PLAN_PROVIDERS = new Set([
   "codex",
   "zai-coding-plan",
@@ -221,6 +223,14 @@ export function DialogUsage() {
     return Math.min(20, Math.floor(dimensions().height * 0.7))
   })
 
+  const tabsPerRow = createMemo(() => {
+    const dialogPadding = 4
+    const availableWidth = dimensions().width - dialogPadding
+    const tabWidth = MAX_TAB_NAME_LENGTH + TAB_PADDING * 2 + TAB_GAP
+    const calculated = Math.floor(availableWidth / tabWidth)
+    return Math.max(1, Math.min(calculated, 7))
+  })
+
   const loadProviderUsage = (providerID: string) => {
     if (!providerID || !sdk.url) return Promise.resolve()
     if (usageState.records[providerID]) return Promise.resolve()
@@ -302,16 +312,16 @@ export function DialogUsage() {
       {/* Provider Tabs */}
       <Show when={filteredProviderTabs().length > 0}>
         <box flexDirection="column" gap={1} paddingBottom={1}>
-          <For each={chunkArray(filteredProviderTabs(), 8)}>
+          <For each={chunkArray(filteredProviderTabs(), tabsPerRow())}>
             {(row) => (
-              <box flexDirection="row" gap={1}>
+              <box flexDirection="row" gap={TAB_GAP}>
                 <For each={row}>
                   {(providerID) => {
                     const record = () => usageState.records[providerID]
                     const name = () =>
                       truncateTabName(record()?.providerName ?? providerById()[providerID]?.name ?? providerID)
                     return (
-                      <box paddingLeft={2} paddingRight={2} paddingTop={0} paddingBottom={0} flexShrink={0}>
+                      <box paddingLeft={TAB_PADDING} paddingRight={TAB_PADDING} paddingTop={0} paddingBottom={0} flexShrink={0}>
                         <text
                           attributes={selectedProvider() === providerID ? TextAttributes.BOLD : undefined}
                           style={{
@@ -473,7 +483,7 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
 }
 
 function describeStatus(record: ProviderUsage.Record) {
-  if (record.error) return { label: record.error, color: "#ff5c5c" }
+  if (record.error) return { label: "error", color: "#ff5c5c" }
   if (record.allowed === false) {
     return {
       label: record.limitReached ? "blocked (limit reached)" : "blocked",

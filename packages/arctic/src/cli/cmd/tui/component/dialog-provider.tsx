@@ -1,10 +1,11 @@
+import { Auth } from "@/auth"
 import { openBrowserUrl } from "@/auth/codex-oauth/auth/browser"
 import type { ProviderAuthAuthorization } from "@arctic-cli/sdk/v2"
 import { TextAttributes } from "@opentui/core"
 import { useSync } from "@tui/context/sync"
 import { useDialog } from "@tui/ui/dialog"
 import { DialogSelect } from "@tui/ui/dialog-select"
-import { map, pipe, sortBy } from "remeda"
+import { filter, map, pipe, sortBy } from "remeda"
 import { createMemo, createSignal, onMount, Show } from "solid-js"
 import { useSDK } from "../context/sdk"
 import { useTheme } from "../context/theme"
@@ -23,6 +24,141 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   codex: 7,
 }
 
+/**
+ * get label for existing connection (email, oauth, api key, etc)
+ */
+function getConnectionLabel(info: Auth.Info): string {
+  if (info.type === "codex" && info.email) return info.email
+  if (info.type === "oauth") return "OAuth"
+  if (info.type === "api") return "API key"
+  if (info.type === "github") return "GitHub token"
+  if (info.type === "ollama") return `${info.host}:${info.port}`
+  return "Authenticated"
+}
+
+/**
+ * check for existing connection and show dialog if needed
+ * calls onContinue with connectionName if user wants to proceed
+ */
+async function checkExistingConnection(
+  providerID: string,
+  dialog: ReturnType<typeof useDialog>,
+  onContinue: (connectionName?: string) => void,
+): Promise<void> {
+  const connections = await Auth.listConnections(providerID)
+
+  if (connections.length === 0) {
+    onContinue()
+    return
+  }
+
+  const existingLabel = getConnectionLabel(connections[0].info)
+
+  dialog.replace(() => (
+    <ExistingConnectionDialog
+      providerID={providerID}
+      existingLabel={existingLabel}
+      onContinue={onContinue}
+    />
+  ))
+}
+
+interface ExistingConnectionDialogProps {
+  providerID: string
+  existingLabel: string
+  onContinue: (connectionName?: string) => void
+}
+
+function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
+  const { theme } = useTheme()
+  const dialog = useDialog()
+
+  const options = createMemo(() => [
+    {
+      title: "Add another connection",
+      value: "add",
+      onSelect: () => {
+        dialog.replace(() => (
+          <ConnectionNamePrompt
+            providerID={props.providerID}
+            onConfirm={(name) => props.onContinue(name)}
+          />
+        ))
+      },
+    },
+    {
+      title: "Overwrite existing",
+      value: "overwrite",
+      onSelect: () => {
+        dialog.replace(() => (
+          <DialogSelect
+            title="Overwrite existing connection?"
+            options={[
+              {
+                title: "Yes, overwrite",
+                value: "yes",
+                onSelect: () => props.onContinue(),
+              },
+              {
+                title: "No, cancel",
+                value: "no",
+                onSelect: () => dialog.clear(),
+              },
+            ]}
+          />
+        ))
+      },
+    },
+    {
+      title: "Cancel",
+      value: "cancel",
+      onSelect: () => dialog.clear(),
+    },
+  ])
+
+  return (
+    <DialogSelect
+      title={`You already have a connection for ${props.providerID}`}
+      options={options()}
+    />
+  )
+}
+
+interface ConnectionNamePromptProps {
+  providerID: string
+  onConfirm: (name: string) => void
+}
+
+function ConnectionNamePrompt(props: ConnectionNamePromptProps) {
+  const { theme } = useTheme()
+  const [error, setError] = createSignal<string>()
+
+  return (
+    <DialogPrompt
+      title="Name for this connection"
+      placeholder="mycompany"
+      description={() => (
+        <Show when={error()}>
+          <text fg={theme.error}>{error()}</text>
+        </Show>
+      )}
+      onConfirm={(value) => {
+        if (!value) {
+          setError("Connection name is required")
+          return
+        }
+        const validation = Auth.validateConnectionName(value)
+        if (typeof validation === "string") {
+          setError(validation)
+          return
+        }
+        props.onConfirm(value)
+      }}
+    />
+  )
+}
+
+
 export function createDialogProviderOptions() {
   const sync = useSync()
   const dialog = useDialog()
@@ -30,6 +166,8 @@ export function createDialogProviderOptions() {
   const options = createMemo(() => {
     return pipe(
       sync.data.provider_next.all,
+      // filter out connection providers (those with : in the id)
+      filter((provider) => !provider.id.includes(":")),
       sortBy((x) => PROVIDER_PRIORITY[x.id] ?? 99),
       map((provider) => ({
         title: provider.name,
@@ -42,58 +180,75 @@ export function createDialogProviderOptions() {
         }[provider.id],
         category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
         async onSelect() {
-          const methods = sync.data.provider_auth[provider.id] ?? [
-            {
-              type: "api",
-              label: "API key",
-            },
-          ]
-          let index: number | null = 0
-          if (methods.length > 1) {
-            index = await new Promise<number | null>((resolve) => {
-              dialog.replace(
-                () => (
-                  <DialogSelect
-                    title="Select auth method"
-                    options={methods.map((x, index) => ({
-                      title: x.label,
-                      value: index,
-                    }))}
-                    onSelect={(option) => resolve(option.value)}
+          // define the auth flow as a function that can be called with optional connectionName
+          const startAuthFlow = async (connectionName?: string) => {
+            const methods = sync.data.provider_auth[provider.id] ?? [
+              {
+                type: "api",
+                label: "API key",
+              },
+            ]
+            let index: number | null = 0
+            if (methods.length > 1) {
+              index = await new Promise<number | null>((resolve) => {
+                dialog.replace(
+                  () => (
+                    <DialogSelect
+                      title="Select auth method"
+                      options={methods.map((x, index) => ({
+                        title: x.label,
+                        value: index,
+                      }))}
+                      onSelect={(option) => resolve(option.value)}
+                    />
+                  ),
+                  () => resolve(null),
+                )
+              })
+            }
+            if (index == null) return
+            const method = methods[index]
+            if (method.type === "oauth") {
+              const result = await sdk.client.provider.oauth.authorize({
+                providerID: provider.id,
+                method: index,
+              })
+              if (result.data?.method === "code") {
+                dialog.replace(() => (
+                  <CodeMethod
+                    providerID={provider.id}
+                    title={method.label}
+                    index={index}
+                    authorization={result.data!}
+                    connectionName={connectionName}
                   />
-                ),
-                () => resolve(null),
-              )
-            })
+                ))
+              }
+              if (result.data?.method === "auto") {
+                dialog.replace(() => (
+                  <AutoMethod
+                    providerID={provider.id}
+                    title={method.label}
+                    index={index}
+                    authorization={result.data!}
+                    connectionName={connectionName}
+                  />
+                ))
+              }
+            }
+            if (method.type === "api") {
+              if (provider.id === "ollama") {
+                return dialog.replace(() => <OllamaMethod providerID={provider.id} title={method.label} connectionName={connectionName} />)
+              }
+              if (provider.id === "minimax-coding-plan" || provider.id === "minimax") {
+                return dialog.replace(() => <MinimaxMethod providerID={provider.id} title={method.label} connectionName={connectionName} />)
+              }
+              return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} connectionName={connectionName} />)
+            }
           }
-          if (index == null) return
-          const method = methods[index]
-          if (method.type === "oauth") {
-            const result = await sdk.client.provider.oauth.authorize({
-              providerID: provider.id,
-              method: index,
-            })
-            if (result.data?.method === "code") {
-              dialog.replace(() => (
-                <CodeMethod providerID={provider.id} title={method.label} index={index} authorization={result.data!} />
-              ))
-            }
-            if (result.data?.method === "auto") {
-              dialog.replace(() => (
-                <AutoMethod providerID={provider.id} title={method.label} index={index} authorization={result.data!} />
-              ))
-            }
-          }
-          if (method.type === "api") {
-            // Special case for ollama - use custom connection flow
-            if (provider.id === "ollama") {
-              return dialog.replace(() => <OllamaMethod providerID={provider.id} title={method.label} />)
-            }
-            if (provider.id === "minimax-coding-plan" || provider.id === "minimax") {
-              return dialog.replace(() => <MinimaxMethod providerID={provider.id} title={method.label} />)
-            }
-            return dialog.replace(() => <ApiMethod providerID={provider.id} title={method.label} />)
-          }
+
+          // check for existing connections first
+          await checkExistingConnection(provider.id, dialog, startAuthFlow)
         },
       })),
     )
@@ -111,6 +266,7 @@ interface AutoMethodProps {
   providerID: string
   title: string
   authorization: ProviderAuthAuthorization
+  connectionName?: string
 }
 function AutoMethod(props: AutoMethodProps) {
   const { theme } = useTheme()
@@ -119,6 +275,7 @@ function AutoMethod(props: AutoMethodProps) {
   const sync = useSync()
 
   onMount(async () => {
+    const previousAuth = props.connectionName ? await Auth.get(props.providerID) : undefined
     const result = await sdk.client.provider.oauth.callback({
       providerID: props.providerID,
       method: props.index,
@@ -127,9 +284,24 @@ function AutoMethod(props: AutoMethodProps) {
       dialog.clear()
       return
     }
+
+    // if connectionName provided, move auth to connection key
+    if (props.connectionName) {
+      const newAuth = await Auth.get(props.providerID)
+      if (newAuth) {
+        const connectionKey = Auth.formatKey(props.providerID, props.connectionName)
+        await Auth.set(connectionKey, newAuth)
+        if (previousAuth) {
+          await Auth.set(props.providerID, previousAuth)
+        } else {
+          await Auth.remove(props.providerID)
+        }
+      }
+    }
+
     await sdk.client.instance.dispose()
     await sync.bootstrap()
-    dialog.replace(() => <DialogModel providerID={props.providerID} />)
+    dialog.replace(() => <DialogModel providerID={props.connectionName ? Auth.formatKey(props.providerID, props.connectionName) : props.providerID} />)
   })
 
   return (
@@ -157,6 +329,7 @@ interface CodeMethodProps {
   title: string
   providerID: string
   authorization: ProviderAuthAuthorization
+  connectionName?: string
 }
 function CodeMethod(props: CodeMethodProps) {
   const { theme } = useTheme()
@@ -170,15 +343,30 @@ function CodeMethod(props: CodeMethodProps) {
       title={props.title}
       placeholder="Authorization code"
       onConfirm={async (value) => {
+        const previousAuth = props.connectionName ? await Auth.get(props.providerID) : undefined
         const { error } = await sdk.client.provider.oauth.callback({
           providerID: props.providerID,
           method: props.index,
           code: value,
         })
         if (!error) {
+          // if connectionName provided, move auth to connection key
+          if (props.connectionName) {
+            const newAuth = await Auth.get(props.providerID)
+            if (newAuth) {
+              const connectionKey = Auth.formatKey(props.providerID, props.connectionName)
+              await Auth.set(connectionKey, newAuth)
+              if (previousAuth) {
+                await Auth.set(props.providerID, previousAuth)
+              } else {
+                await Auth.remove(props.providerID)
+              }
+            }
+          }
+
           await sdk.client.instance.dispose()
           await sync.bootstrap()
-          dialog.replace(() => <DialogModel providerID={props.providerID} />)
+          dialog.replace(() => <DialogModel providerID={props.connectionName ? Auth.formatKey(props.providerID, props.connectionName) : props.providerID} />)
           return
         }
         setError(true)
@@ -202,6 +390,7 @@ function CodeMethod(props: CodeMethodProps) {
 interface ApiMethodProps {
   providerID: string
   title: string
+  connectionName?: string
 }
 function ApiMethod(props: ApiMethodProps) {
   const dialog = useDialog()
@@ -216,8 +405,9 @@ function ApiMethod(props: ApiMethodProps) {
       description={undefined}
       onConfirm={async (value) => {
         if (!value) return
-        sdk.client.auth.set({
-          providerID: props.providerID,
+        const targetKey = props.connectionName ? Auth.formatKey(props.providerID, props.connectionName) : props.providerID
+        await sdk.client.auth.set({
+          providerID: targetKey,
           auth: {
             type: "api",
             key: value,
@@ -225,7 +415,7 @@ function ApiMethod(props: ApiMethodProps) {
         })
         await sdk.client.instance.dispose()
         await sync.bootstrap()
-        dialog.replace(() => <DialogModel providerID={props.providerID} />)
+        dialog.replace(() => <DialogModel providerID={targetKey} />)
       }}
     />
   )
@@ -234,6 +424,7 @@ function ApiMethod(props: ApiMethodProps) {
 interface OllamaMethodProps {
   providerID: string
   title: string
+  connectionName?: string
 }
 function OllamaMethod(props: OllamaMethodProps) {
   const dialog = useDialog()
@@ -250,7 +441,7 @@ function OllamaMethod(props: OllamaMethodProps) {
       )}
       onConfirm={(value) => {
         const host = value || "127.0.0.1"
-        dialog.replace(() => <OllamaPortStep host={host} />)
+        dialog.replace(() => <OllamaPortStep host={host} connectionName={props.connectionName} />)
       }}
     />
   )
@@ -258,6 +449,7 @@ function OllamaMethod(props: OllamaMethodProps) {
 
 interface OllamaPortStepProps {
   host: string
+  connectionName?: string
 }
 function OllamaPortStep(props: OllamaPortStepProps) {
   const dialog = useDialog()
@@ -283,7 +475,7 @@ function OllamaPortStep(props: OllamaPortStepProps) {
           setError("Invalid port number")
           return
         }
-        dialog.replace(() => <OllamaConnectingStep host={props.host} port={portNum} />)
+        dialog.replace(() => <OllamaConnectingStep host={props.host} port={portNum} connectionName={props.connectionName} />)
       }}
     />
   )
@@ -292,6 +484,7 @@ function OllamaPortStep(props: OllamaPortStepProps) {
 interface OllamaConnectingStepProps {
   host: string
   port: number
+  connectionName?: string
 }
 function OllamaConnectingStep(props: OllamaConnectingStepProps) {
   const dialog = useDialog()
@@ -323,9 +516,11 @@ function OllamaConnectingStep(props: OllamaConnectingStepProps) {
         return
       }
 
+      const targetKey = props.connectionName ? Auth.formatKey("ollama", props.connectionName) : "ollama"
+
       // Save the ollama config
       await sdk.client.auth.set({
-        providerID: "ollama",
+        providerID: targetKey,
         auth: {
           type: "ollama",
           host: props.host,
@@ -335,7 +530,7 @@ function OllamaConnectingStep(props: OllamaConnectingStepProps) {
 
       await sdk.client.instance.dispose()
       await sync.bootstrap()
-      dialog.replace(() => <DialogModel providerID="ollama" />)
+      dialog.replace(() => <DialogModel providerID={targetKey} />)
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       setError(`Connection failed: ${message}`)
@@ -368,6 +563,7 @@ function OllamaConnectingStep(props: OllamaConnectingStepProps) {
 interface MinimaxMethodProps {
   providerID: string
   title: string
+  connectionName?: string
 }
 function MinimaxMethod(props: MinimaxMethodProps) {
   const dialog = useDialog()
@@ -384,7 +580,7 @@ function MinimaxMethod(props: MinimaxMethodProps) {
       )}
       onConfirm={(value) => {
         if (!value) return
-        dialog.replace(() => <MinimaxGroupIdStep providerID={props.providerID} apiKey={value} />)
+        dialog.replace(() => <MinimaxGroupIdStep providerID={props.providerID} apiKey={value} connectionName={props.connectionName} />)
       }}
     />
   )
@@ -393,6 +589,7 @@ function MinimaxMethod(props: MinimaxMethodProps) {
 interface MinimaxGroupIdStepProps {
   providerID: string
   apiKey: string
+  connectionName?: string
 }
 function MinimaxGroupIdStep(props: MinimaxGroupIdStepProps) {
   const dialog = useDialog()
@@ -418,13 +615,14 @@ function MinimaxGroupIdStep(props: MinimaxGroupIdStepProps) {
         if (groupId && groupId.trim()) {
           auth.groupId = groupId.trim()
         }
+        const targetKey = props.connectionName ? Auth.formatKey(props.providerID, props.connectionName) : props.providerID
         await sdk.client.auth.set({
-          providerID: props.providerID,
+          providerID: targetKey,
           auth,
         })
         await sdk.client.instance.dispose()
         await sync.bootstrap()
-        dialog.replace(() => <DialogModel providerID={props.providerID} />)
+        dialog.replace(() => <DialogModel providerID={targetKey} />)
       }}
     />
   )

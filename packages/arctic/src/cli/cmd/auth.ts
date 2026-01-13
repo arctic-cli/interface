@@ -16,10 +16,78 @@ import { cmd } from "./cmd"
 type PluginAuth = NonNullable<Hooks["auth"]>
 
 /**
+ * Check if provider already has credentials BEFORE starting auth flow.
+ * Returns whether to proceed with auth and optionally a connection name.
+ */
+async function checkExistingConnection(provider: string): Promise<{ proceed: boolean; connectionName?: string }> {
+  const connections = await Auth.listConnections(provider)
+
+  if (connections.length === 0) {
+    return { proceed: true }
+  }
+
+  const existingInfo = connections[0].info
+  let existingLabel = ""
+
+  if (existingInfo.type === "codex" && existingInfo.email) {
+    existingLabel = existingInfo.email
+  } else if (existingInfo.type === "oauth") {
+    existingLabel = "OAuth"
+  } else if (existingInfo.type === "api") {
+    existingLabel = "API key"
+  } else if (existingInfo.type === "github") {
+    existingLabel = "GitHub token"
+  }
+
+  prompts.log.warn(`You already have a connection for ${provider}${existingLabel ? ` (${existingLabel})` : ""}`)
+
+  const addAnother = await prompts.confirm({
+    message: "Do you want to add another connection?",
+    initialValue: true,
+  })
+
+  if (prompts.isCancel(addAnother)) return { proceed: false }
+
+  if (!addAnother) {
+    const overwrite = await prompts.confirm({
+      message: "Do you want to overwrite the existing connection?",
+      initialValue: false,
+    })
+
+    if (prompts.isCancel(overwrite)) return { proceed: false }
+
+    if (!overwrite) {
+      return { proceed: false }
+    }
+
+    return { proceed: true }
+  }
+
+  const connectionName = await prompts.text({
+    message: "Name for this connection",
+    placeholder: "mycompany",
+    validate: (value) => {
+      if (!value) return "Connection name is required"
+      return Auth.validateConnectionName(value)
+    },
+  })
+
+  if (prompts.isCancel(connectionName)) return { proceed: false }
+
+  return { proceed: true, connectionName }
+}
+
+/**
  * Handle plugin-based authentication flow.
  * Returns true if auth was handled, false if it should fall through to default handling.
  */
 async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string): Promise<boolean> {
+  const check = await checkExistingConnection(provider)
+  if (!check.proceed) {
+    prompts.outro("Cancelled")
+    return true
+  }
+
   let index = 0
   if (plugin.auth.methods.length > 1) {
     const method = await prompts.select({
@@ -70,9 +138,10 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
       if (!result || result.type !== "success") return
       const saveProvider = result.provider ?? provider
 
+      let authInfo: Auth.Info
       if ("refresh" in result) {
         if ("idToken" in result && result.idToken) {
-          await Auth.set(saveProvider, {
+          authInfo = {
             type: "codex",
             accessToken: result.access,
             refreshToken: result.refresh,
@@ -81,23 +150,26 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
             accountId: result.accountId,
             email: result.email,
             planType: result.planType,
-          })
+          }
         } else {
-          await Auth.set(saveProvider, {
+          authInfo = {
             type: "oauth",
             refresh: result.refresh,
             access: result.access,
             expires: result.expires,
-          })
+          }
         }
-      }
-
-      if ("key" in result) {
-        await Auth.set(saveProvider, {
+      } else if ("key" in result) {
+        authInfo = {
           type: "api",
           key: result.key,
-        })
+        }
+      } else {
+        return
       }
+
+      const authKey = check.connectionName ? Auth.formatKey(saveProvider, check.connectionName) : saveProvider
+      await Auth.set(authKey, authInfo)
     }
 
     if (authorize.url) {
@@ -152,10 +224,12 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
       }
       if (result.type === "success") {
         const saveProvider = result.provider ?? provider
-        await Auth.set(saveProvider, {
+        const authInfo: Auth.Info = {
           type: "api",
           key: result.key,
-        })
+        }
+        const authKey = check.connectionName ? Auth.formatKey(saveProvider, check.connectionName) : saveProvider
+        await Auth.set(authKey, authInfo)
         prompts.log.success("Login successful")
       }
       prompts.outro("Done")
@@ -167,9 +241,25 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string):
 }
 
 async function handleCodexDeviceLogin() {
+  const check = await checkExistingConnection("codex")
+  if (!check.proceed) {
+    prompts.outro("Cancelled")
+    return
+  }
+
   prompts.log.info("Authorize Codex with your ChatGPT subscription via device login.")
   try {
     await CodexClient.login()
+
+    const codexAuth = await Auth.get("codex")
+    if (codexAuth) {
+      const authKey = check.connectionName ? Auth.formatKey("codex", check.connectionName) : "codex"
+      if (authKey !== "codex") {
+        await Auth.set(authKey, codexAuth)
+        await Auth.remove("codex")
+      }
+    }
+
     prompts.log.success("Codex login successful")
     prompts.outro("Done")
   } catch (error) {
@@ -192,6 +282,12 @@ interface OllamaModelsResponse {
 }
 
 async function handleOllamaLogin() {
+  const check = await checkExistingConnection("ollama")
+  if (!check.proceed) {
+    prompts.outro("Cancelled")
+    return
+  }
+
   prompts.log.info("Connect to a local Ollama instance.")
 
   const host = await prompts.text({
@@ -247,11 +343,13 @@ async function handleOllamaLogin() {
       prompts.log.message(`  ${model.id} ${UI.Style.TEXT_DIM}(${model.owned_by})`)
     }
 
-    await Auth.set("ollama", {
+    const authInfo: Auth.Info = {
       type: "ollama",
       host: hostValue,
       port,
-    })
+    }
+    const authKey = check.connectionName ? Auth.formatKey("ollama", check.connectionName) : "ollama"
+    await Auth.set(authKey, authInfo)
 
     prompts.log.success("Ollama configured successfully")
     prompts.outro("Done")
@@ -264,6 +362,12 @@ async function handleOllamaLogin() {
 }
 
 async function handleAlibabaLogin() {
+  const check = await checkExistingConnection("alibaba")
+  if (!check.proceed) {
+    prompts.outro("Cancelled")
+    return
+  }
+
   prompts.log.info("Authorize Alibaba (Qwen Code) with your Qwen account via device login.")
 
   const { ArcticQwenAuth } = await import("../../auth/qwen-oauth")
@@ -293,6 +397,15 @@ async function handleAlibabaLogin() {
     }
     if (result.type === "success") {
       spinner.stop("Login successful")
+
+      const alibabaAuth = await Auth.get("alibaba")
+      if (alibabaAuth) {
+        const authKey = check.connectionName ? Auth.formatKey("alibaba", check.connectionName) : "alibaba"
+        if (authKey !== "alibaba") {
+          await Auth.set(authKey, alibabaAuth)
+          await Auth.remove("alibaba")
+        }
+      }
     }
   }
 
@@ -320,12 +433,66 @@ export const AuthListCommand = cmd({
     const results = Object.entries(await Auth.all())
     const database = await ModelsDev.get()
 
-    for (const [providerID, result] of results) {
-      const name = database[providerID]?.name || providerID
-      prompts.log.info(`${name} ${UI.Style.TEXT_DIM}${result.type}`)
+    const grouped = new Map<string, Array<{ key: string; connection?: string; info: Auth.Info }>>()
+
+    for (const [key, info] of results) {
+      const parsed = Auth.parseKey(key)
+      if (!grouped.has(parsed.provider)) {
+        grouped.set(parsed.provider, [])
+      }
+      grouped.get(parsed.provider)!.push({ key, connection: parsed.connection, info })
     }
 
-    prompts.outro(`${results.length} credentials`)
+    for (const [provider, connections] of Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))) {
+      const providerName = database[provider]?.name || provider
+
+      if (connections.length === 1 && !connections[0].connection) {
+        let label = ""
+        const info = connections[0].info
+        if (info.type === "codex" && info.email) {
+          label = info.email
+        } else if (info.type === "oauth") {
+          label = "OAuth"
+        } else if (info.type === "api") {
+          label = "API key"
+        } else if (info.type === "github") {
+          label = "GitHub token"
+        } else {
+          label = info.type
+        }
+        prompts.log.info(`${providerName}${label ? ` ${UI.Style.TEXT_DIM}(${label})` : ""}`)
+      } else {
+        const defaultConn = connections.find((c) => !c.connection)
+        if (defaultConn) {
+          let label = ""
+          if (defaultConn.info.type === "codex" && defaultConn.info.email) {
+            label = defaultConn.info.email
+          } else {
+            label = defaultConn.info.type
+          }
+          prompts.log.info(`${providerName}`)
+          prompts.log.message(`  └─ ${label} ${UI.Style.TEXT_DIM}(default)`)
+        }
+
+        for (const conn of connections.filter((c) => c.connection)) {
+          let label = ""
+          if (conn.info.type === "codex" && conn.info.email) {
+            label = conn.info.email
+          } else {
+            label = conn.info.type
+          }
+
+          if (!defaultConn) {
+            prompts.log.info(`${providerName} (${conn.connection})`)
+            prompts.log.message(`  └─ ${label}`)
+          } else {
+            prompts.log.message(`  └─ ${label} ${UI.Style.TEXT_DIM}(${conn.connection})`)
+          }
+        }
+      }
+    }
+
+    prompts.outro(`${results.length} credential${results.length === 1 ? "" : "s"}`)
 
     // Environment variables section
     const activeEnvVars: Array<{ provider: string; envVar: string }> = []
@@ -535,7 +702,12 @@ export const AuthLoginCommand = cmd({
         }
 
         if (provider === "antigravity") {
-          await import("../../auth/antigravity-oauth/cli").then((m) => m.handleAntigravityLogin())
+          const check = await checkExistingConnection("antigravity")
+          if (!check.proceed) {
+            prompts.outro("Cancelled")
+            return
+          }
+          await import("../../auth/antigravity-oauth/cli").then((m) => m.handleAntigravityLogin(check.connectionName))
           return
         }
 
@@ -546,6 +718,12 @@ export const AuthLoginCommand = cmd({
 
         if (provider === "alibaba") {
           await handleAlibabaLogin()
+          return
+        }
+
+        const check = await checkExistingConnection(provider!)
+        if (!check.proceed) {
+          prompts.outro("Cancelled")
           return
         }
 
@@ -564,18 +742,21 @@ export const AuthLoginCommand = cmd({
         })
         if (prompts.isCancel(key)) throw new UI.CancelledError()
 
-        // GitHub Copilot uses a special auth type
+        let authInfo: Auth.Info
         if (provider === "github-copilot") {
-          await Auth.set(provider, {
+          authInfo = {
             type: "github",
             token: key,
-          })
+          }
         } else {
-          await Auth.set(provider!, {
+          authInfo = {
             type: "api",
             key,
-          })
+          }
         }
+
+        const authKey = check.connectionName ? Auth.formatKey(provider!, check.connectionName) : provider!
+        await Auth.set(authKey, authInfo)
 
         prompts.log.success("Logged into " + provider)
         prompts.outro("Done")
@@ -597,11 +778,24 @@ export const AuthLogoutCommand = cmd({
     }
     const database = await ModelsDev.get()
     const providerID = await prompts.select({
-      message: "Select provider",
-      options: credentials.map(([key, value]) => ({
-        label: (database[key]?.name || key) + UI.Style.TEXT_DIM + " (" + value.type + ")",
-        value: key,
-      })),
+      message: "Select connection",
+      options: credentials.map(([key, value]) => {
+        const parsed = Auth.parseKey(key)
+        const providerName = database[parsed.provider]?.name || parsed.provider
+        const displayName = Auth.formatDisplayName(providerName, parsed.connection)
+
+        let label = displayName
+        if (value.type === "codex" && value.email) {
+          label += ` ${UI.Style.TEXT_DIM}(${value.email})`
+        } else {
+          label += ` ${UI.Style.TEXT_DIM}(${value.type})`
+        }
+
+        return {
+          label,
+          value: key,
+        }
+      }),
     })
     if (prompts.isCancel(providerID)) throw new UI.CancelledError()
     await Auth.remove(providerID)

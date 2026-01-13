@@ -76,6 +76,67 @@ export namespace Auth {
 
   const filepath = path.join(Global.Path.data, "auth.json")
 
+  export function parseKey(key: string): { provider: string; connection?: string } {
+    const parts = key.split(":")
+    if (parts.length === 1) return { provider: parts[0] }
+    return { provider: parts[0], connection: parts.slice(1).join(":") }
+  }
+
+  export function formatKey(provider: string, connection?: string): string {
+    if (!connection) return provider
+    return `${provider}:${connection}`
+  }
+
+  export function formatDisplayName(provider: string, connection?: string): string {
+    if (!connection) return provider
+    return `${provider} (${connection})`
+  }
+
+  export function parseDisplayName(displayName: string): { provider: string; connection?: string } {
+    const match = displayName.match(/^(.+?)\s*\((.+)\)$/)
+    if (!match) return { provider: displayName }
+    return { provider: match[1], connection: match[2] }
+  }
+
+  export async function listConnections(provider: string): Promise<Array<{ key: string; connection?: string; info: Info }>> {
+    const auth = await all()
+    const connections: Array<{ key: string; connection?: string; info: Info }> = []
+    
+    for (const [key, info] of Object.entries(auth)) {
+      const parsed = parseKey(key)
+      if (parsed.provider === provider) {
+        connections.push({ key, connection: parsed.connection, info })
+      }
+    }
+    
+    return connections
+  }
+
+  export function validateConnectionName(name: string): string | undefined {
+    if (!name || name.length === 0) return "Connection name is required"
+    if (name.length > 32) return "Connection name must be 32 characters or less"
+    if (!/^[a-zA-Z0-9_-]+$/.test(name)) return "Connection name can only contain letters, numbers, hyphens, and underscores"
+    return undefined
+  }
+
+  export function suggestConnectionName(info: Info): string | undefined {
+    if (info.type === "codex" && info.email) {
+      const domain = info.email.split("@")[1]
+      if (domain) {
+        const name = domain.split(".")[0]
+        return name
+      }
+    }
+    if (info.type === "oauth" && "email" in info && typeof info.email === "string") {
+      const domain = info.email.split("@")[1]
+      if (domain) {
+        const name = domain.split(".")[0]
+        return name
+      }
+    }
+    return undefined
+  }
+
   async function readLocalAuth(): Promise<Record<string, Info>> {
     const file = Bun.file(filepath)
     const data = await file.json().catch(() => ({}) as Record<string, unknown>)

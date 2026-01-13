@@ -21,9 +21,13 @@ import type { PluginInput } from "@arctic-cli/plugin"
 /**
  * Handles the interactive login flow for Antigravity.
  * This launches the OAuth flow via the plugin's auth method.
+ * 
+ * @param connectionName - Optional connection name for multi-account support
  */
-export async function handleAntigravityLogin() {
+export async function handleAntigravityLogin(connectionName?: string) {
   const { ArcticAntigravityAuth } = await import("./index")
+  const { Auth } = await import("../index")
+  
   // Create a minimal plugin input context
   const plugin = await ArcticAntigravityAuth({
     client: {
@@ -53,6 +57,13 @@ export async function handleAntigravityLogin() {
     const result = await authorize.callback()
     if (result.type === "success") {
       console.log("Login successful")
+      
+      const antigravityAuth = await Auth.get("antigravity")
+      if (antigravityAuth && connectionName) {
+        const authKey = Auth.formatKey("antigravity", connectionName)
+        await Auth.set(authKey, antigravityAuth)
+        await Auth.remove("antigravity")
+      }
     } else {
       console.error("Login failed")
     }

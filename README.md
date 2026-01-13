@@ -88,6 +88,8 @@ Arctic is open source and we'd love your input. Whether you have ideas, want to 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
+**If Arctic saved you time or stress, a short message or issue saying how you use it helps a lot.**
+
 &ensp;
 
 ## FAQ

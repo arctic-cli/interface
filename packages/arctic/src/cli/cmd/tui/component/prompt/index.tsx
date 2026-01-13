@@ -366,7 +366,6 @@ export function Prompt(props: PromptProps) {
           providerID,
         })
 
-
         if (cancelled) return
 
         if (!record || !record.limits) {
@@ -1469,9 +1468,7 @@ export function Prompt(props: PromptProps) {
           width="100%"
         >
           <box flexDirection="row" alignItems="flex-start" width="100%" gap={1}>
-            <text fg={highlight()} attributes={TextAttributes.BOLD}>
-              {store.mode === "shell" ? "!" : ">"}
-            </text>
+            <text attributes={TextAttributes.BOLD}>{store.mode === "shell" ? "!" : ">"}</text>
             <box flexGrow={1} width="100%">
               <textarea
                 width="100%"
@@ -1709,14 +1706,9 @@ export function Prompt(props: PromptProps) {
                   const limits = usageLimits()!
                   const model = local.model.current()
                   const isMinimax = model?.providerID === "minimax" || model?.providerID === "minimax-coding-plan"
-                  
-                  // calculate remaining percentage
-                  // for minimax: show usedPercent directly as "left" (counterintuitive but requested)
-                  // for others: calculate 100 - usedPercent to get remaining
                   const remaining = limits.percent !== undefined ? Math.max(0, 100 - limits.percent) : undefined
                   const percentValue = isMinimax ? (limits.percent ?? undefined) : remaining
-                  
-                   const color = percentValue !== undefined && percentValue <= 15 ? theme.error : theme.textMuted
+                  const color = percentValue !== undefined && percentValue <= 15 ? theme.error : theme.textMuted
                   const label = (() => {
                     if (percentValue !== undefined) {
                       return `${percentValue.toFixed(0)}% left${limits.timeLeft ? ` (${limits.timeLeft})` : ""}`
@@ -1832,7 +1824,7 @@ export function Prompt(props: PromptProps) {
                     {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
                   </text>
                   <text fg={theme.text}>
-                    /usage <span style={{ fg: theme.textMuted }}>see usage stats</span>
+                    /usage <span style={{ fg: theme.textMuted }}>see usage</span>
                   </text>
                 </Match>
                 <Match when={store.mode === "shell"}>

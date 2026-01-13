@@ -110,7 +110,8 @@ export namespace ProviderUsage {
 
     for (const providerID of providerIDs) {
       const provider = providers[providerID]
-      const fetcher = usageFetchers[providerID]
+      const baseProviderID = provider?.baseProvider ?? providerID
+      const fetcher = usageFetchers[baseProviderID]
       const base: Record = {
         providerID,
         providerName: provider?.name ?? providerID,
@@ -202,7 +203,7 @@ export namespace ProviderUsage {
     for (const messageKey of messageKeys) {
       const msg = await Storage.read<MessageV2.Info>(messageKey)
 
-      // Filter by provider
+      // Filter by provider - match exact provider ID (including connection)
       if (msg.role !== "assistant" || msg.providerID !== input.provider.id || !msg.tokens) {
         continue
       }
@@ -510,15 +511,17 @@ export namespace ProviderUsage {
 
     const model = modelRemains[0]
     const totalCount = typeof model.current_interval_total_count === "number" ? model.current_interval_total_count : 0
-    const usedCount = typeof model.current_interval_usage_count === "number" ? model.current_interval_usage_count : 0
+    const remainingCount = typeof model.current_interval_usage_count === "number" ? model.current_interval_usage_count : 0
     const remainsTime = typeof model.remains_time === "number" ? model.remains_time : 0
     const modelName = typeof model.model_name === "string" ? model.model_name : "MiniMax"
 
+    const usedCount = totalCount > 0 ? totalCount - remainingCount : 0
+    const remainingPercent = totalCount > 0 ? (remainingCount / totalCount) * 100 : 100
     const usedPercent = totalCount > 0 ? (usedCount / totalCount) * 100 : 0
 
     const limitReached = usedCount >= totalCount && totalCount > 0
 
-    const planType = `${modelName}\n- ${usedCount.toLocaleString()} / ${totalCount.toLocaleString()} requests (${usedPercent.toFixed(1)}%)\n- Time remaining: ${formatMilliseconds(remainsTime)}`
+    const planType = `${modelName}\n- ${remainingCount.toLocaleString()} / ${totalCount.toLocaleString()} requests remaining (${remainingPercent.toFixed(1)}%)\n- Time remaining: ${formatMilliseconds(remainsTime)}`
 
     const resetsAt = remainsTime > 0 ? Math.floor((Date.now() + remainsTime) / 1000) : undefined
 
@@ -528,7 +531,7 @@ export namespace ProviderUsage {
       limitReached,
       limits: {
         primary: {
-          usedPercent,
+          usedPercent: remainingPercent,
           resetsAt,
           label: "Request quota",
         },
@@ -554,7 +557,7 @@ export namespace ProviderUsage {
     return `${seconds}s`
   }
 
-  async function ensureAnthropicAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+  async function ensureAnthropicAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>, providerID: string): Promise<string> {
     let token = auth.access
     if (!token || auth.expires <= Date.now() + TOKEN_REFRESH_BUFFER_MS) {
       const refreshed = await refreshAnthropicToken(auth.refresh)
@@ -568,7 +571,7 @@ export namespace ProviderUsage {
         refresh: refreshed.refresh!,
         expires: refreshed.expires!,
       }
-      await Auth.set("anthropic", updated)
+      await Auth.set(providerID, updated)
       token = refreshed.access!
     }
     return token
@@ -578,12 +581,12 @@ export namespace ProviderUsage {
     provider: Provider.Info
   }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
     let token: string | undefined
-    const auth = await Auth.get("anthropic")
+    const auth = await Auth.get(input.provider.id)
 
     if (auth?.type === "api") {
       token = auth.key
     } else if (auth?.type === "oauth") {
-      token = await ensureAnthropicAccessToken(auth)
+      token = await ensureAnthropicAccessToken(auth, input.provider.id)
     } else if (auth?.type === "wellknown") {
       token = auth.token || auth.key
     }
@@ -726,13 +729,15 @@ export namespace ProviderUsage {
     }
   }
 
-  async function fetchCodexUsage(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
-    const auth = await Auth.get("codex")
+  async function fetchCodexUsage(input: {
+    provider: Provider.Info
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const auth = await Auth.get(input.provider.id)
     if (!auth) {
       throw new Error("Codex authentication is required. Run `arctic auth codex` to connect your account.")
     }
 
-    const { accessToken, accountId } = await resolveCodexCredentials(auth)
+    const { accessToken, accountId } = await resolveCodexCredentials(auth, input.provider.id)
     const payload = await fetchCodexUsagePayload({
       baseUrl: resolveCodexBaseUrl(auth),
       accessToken,
@@ -788,7 +793,7 @@ export namespace ProviderUsage {
 
   const TOKEN_REFRESH_BUFFER_MS = 60 * 1000
 
-  async function resolveCodexCredentials(auth: Auth.Info): Promise<{ accessToken: string; accountId: string }> {
+  async function resolveCodexCredentials(auth: Auth.Info, providerID: string): Promise<{ accessToken: string; accountId: string }> {
     if (auth.type === "codex") {
       const accessToken = await CodexClient.ensureValidToken()
       const accountId = resolveAccountId(auth.accountId, auth.idToken ?? accessToken)
@@ -796,7 +801,7 @@ export namespace ProviderUsage {
     }
 
     if (auth.type === "oauth") {
-      const accessToken = await ensureOauthAccessToken(auth)
+      const accessToken = await ensureOauthAccessToken(auth, providerID)
       const accountId = resolveAccountId(undefined, accessToken)
       return { accessToken, accountId }
     }
@@ -804,7 +809,7 @@ export namespace ProviderUsage {
     throw new Error("Codex authentication is required. Run `arctic auth codex` to connect your account.")
   }
 
-  async function ensureOauthAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+  async function ensureOauthAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>, providerID: string): Promise<string> {
     let token = auth.access
     if (!token || auth.expires <= Date.now() + TOKEN_REFRESH_BUFFER_MS) {
       const refreshed = await refreshAccessToken(auth.refresh)
@@ -819,7 +824,7 @@ export namespace ProviderUsage {
         expires: refreshed.expires,
         enterpriseUrl: auth.enterpriseUrl,
       }
-      await Auth.set("codex", updated)
+      await Auth.set(providerID, updated)
       token = refreshed.access
     }
     return token
@@ -833,9 +838,14 @@ export namespace ProviderUsage {
     throw new Error("Could not determine your ChatGPT account ID. Run `arctic auth codex` to refresh your login.")
   }
 
-  async function fetchGithubCopilotUsageWrapper(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
-    // Try to get auth from either github-copilot or github-copilot-enterprise
-    let auth = await Auth.get("github-copilot")
+  async function fetchGithubCopilotUsageWrapper(input: {
+    provider: Provider.Info
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    // Try to get auth from the specific provider ID first, then fall back to defaults
+    let auth = await Auth.get(input.provider.id)
+    if (!auth && input.provider.id !== "github-copilot") {
+      auth = await Auth.get("github-copilot")
+    }
     if (!auth) {
       auth = await Auth.get("github-copilot-enterprise")
     }
@@ -935,7 +945,9 @@ export namespace ProviderUsage {
     }
   }
 
-  async function fetchGoogleUsage(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+  async function fetchGoogleUsage(input: {
+    provider: Provider.Info
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
     const debugFile = path.join(Global.Path.log, "google-usage-debug.log")
     const logDebug = async (message: string, data?: { [key: string]: unknown }) => {
       const safe = data ? JSON.stringify(data) : ""
@@ -975,7 +987,7 @@ export namespace ProviderUsage {
     }
 
     await logDebug("fetchGoogleUsage.start")
-    const auth = await Auth.get("google")
+    const auth = await Auth.get(input.provider.id)
     if (!auth || auth.type !== "oauth") {
       await logDebug("auth.missing_or_invalid")
       throw new Error("Google OAuth authentication is required. Run `arctic auth login` and select Google.")
@@ -1016,7 +1028,7 @@ export namespace ProviderUsage {
       return `${parts.refreshToken}|${projectSegment}|${managedSegment}`
     }
 
-    async function ensureGoogleAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+    async function ensureGoogleAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>, providerID: string): Promise<string> {
       const refreshParts = parseRefreshParts(auth.refresh)
       let token = auth.access
       if (!token || auth.expires <= Date.now() + 5 * 60 * 1000) {
@@ -1045,7 +1057,7 @@ export namespace ProviderUsage {
           refresh: auth.refresh,
           expires: auth.expires,
         }
-        await Auth.set("google", updated)
+        await Auth.set(providerID, updated)
         token = accessToken
         await logDebug("accessToken.refresh_success")
       }
@@ -1172,6 +1184,7 @@ export namespace ProviderUsage {
     async function ensureProjectContext(
       accessToken: string,
       auth: Extract<Auth.Info, { type: "oauth" }>,
+      providerID: string,
     ): Promise<string> {
       const configuredProjectId =
         process.env.GOOGLE_CLOUD_PROJECT ?? process.env.GCP_PROJECT ?? process.env.GCLOUD_PROJECT
@@ -1202,7 +1215,7 @@ export namespace ProviderUsage {
           }),
           expires: auth.expires,
         }
-        await Auth.set("google", updated)
+        await Auth.set(providerID, updated)
         await logDebug("project.from_load", { managedProjectId: loadPayload.cloudaicompanionProject })
         return loadPayload.cloudaicompanionProject
       }
@@ -1246,7 +1259,7 @@ export namespace ProviderUsage {
           }),
           expires: auth.expires,
         }
-        await Auth.set("google", updated)
+        await Auth.set(providerID, updated)
         await logDebug("project.onboarded", { managedProjectId })
         return managedProjectId
       }
@@ -1257,8 +1270,8 @@ export namespace ProviderUsage {
       )
     }
 
-    const accessToken = await ensureGoogleAccessToken(auth)
-    const projectId = await ensureProjectContext(accessToken, auth)
+    const accessToken = await ensureGoogleAccessToken(auth, input.provider.id)
+    const projectId = await ensureProjectContext(accessToken, auth, input.provider.id)
     await logDebug("quota.request", { projectId })
 
     const res = await globalThis.fetch("https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota", {
@@ -1333,8 +1346,10 @@ export namespace ProviderUsage {
     }
   }
 
-  async function fetchKimiUsage(): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
-    const auth = await Auth.get("kimi-for-coding")
+  async function fetchKimiUsage(input: {
+    provider: Provider.Info
+  }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
+    const auth = await Auth.get(input.provider.id)
     if (!auth) {
       throw new Error("Kimi authentication is required. Run `arctic auth login` and select Kimi.")
     }
@@ -1474,7 +1489,7 @@ export namespace ProviderUsage {
     return `${minutes}m left`
   }
 
-  async function ensureAntigravityAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>): Promise<string> {
+  async function ensureAntigravityAccessToken(auth: Extract<Auth.Info, { type: "oauth" }>, _providerID: string): Promise<string> {
     const needsRefresh = !auth.access || !auth.expires || auth.expires <= Date.now() + 5 * 60 * 1000
 
     if (needsRefresh) {
@@ -1499,12 +1514,12 @@ export namespace ProviderUsage {
     sessionID?: string
     timePeriod?: TimePeriod
   }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
-    const auth = await Auth.get("antigravity")
+    const auth = await Auth.get(input.provider.id)
     if (!auth || auth.type !== "oauth") {
       throw new Error("Antigravity OAuth authentication is required. Run `arctic auth login` and select Antigravity.")
     }
 
-    const accessToken = await ensureAntigravityAccessToken(auth)
+    const accessToken = await ensureAntigravityAccessToken(auth, input.provider.id)
 
     // Fetch quota information from Antigravity API
     const quotas = await fetchAntigravityModels(accessToken)
@@ -1605,8 +1620,9 @@ export namespace ProviderUsage {
     for (const messageKey of messageKeys) {
       const msg = await Storage.read<MessageV2.Info>(messageKey)
 
-      // Only count assistant messages from alibaba provider
-      if (msg.role !== "assistant" || msg.providerID !== "alibaba") {
+      // Only count assistant messages from alibaba provider (use baseProvider if available for connections)
+      const targetProviderID = input.provider.baseProvider ?? input.provider.id
+      if (msg.role !== "assistant" || msg.providerID !== targetProviderID) {
         continue
       }
 

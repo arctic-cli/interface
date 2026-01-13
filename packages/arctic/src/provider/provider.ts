@@ -1039,6 +1039,7 @@ export namespace Provider {
       key: z.string().optional(),
       options: z.record(z.string(), z.any()),
       models: z.record(z.string(), Model),
+      baseProvider: z.string().optional(),
     })
     .meta({
       ref: "Provider",
@@ -2008,12 +2009,33 @@ export namespace Provider {
     }
 
     // load apikeys
-    for (const [providerID, provider] of Object.entries(await Auth.all())) {
-      if (disabled.has(providerID)) continue
+    for (const [authKey, provider] of Object.entries(await Auth.all())) {
+      const parsed = Auth.parseKey(authKey)
+      if (disabled.has(parsed.provider)) continue
+
       if (provider.type === "api") {
-        mergeProvider(providerID, {
+        mergeProvider(authKey, {
           source: "api",
           key: provider.key,
+        })
+      }
+
+      if (parsed.connection && database[parsed.provider]) {
+        const baseProvider = database[parsed.provider]
+        database[authKey] = {
+          ...baseProvider,
+          id: authKey,
+          name: Auth.formatDisplayName(baseProvider.name || parsed.provider, parsed.connection),
+          baseProvider: parsed.provider,
+          models: mapValues(baseProvider.models, (model) => ({
+            ...model,
+            providerID: authKey,
+          })),
+        }
+        // add virtual provider to providers object
+        mergeProvider(authKey, {
+          source: provider.type === "api" ? "api" : "custom",
+          key: provider.type === "api" ? provider.key : undefined,
         })
       }
     }
@@ -2046,6 +2068,20 @@ export namespace Provider {
         })
       }
 
+      for (const authKey of Object.keys(database)) {
+        const parsed = Auth.parseKey(authKey)
+        if (parsed.provider === providerID && parsed.connection) {
+          const connAuth = await Auth.get(authKey)
+          if (connAuth && plugin.auth.loader) {
+            const connOptions = await plugin.auth.loader(() => Auth.get(authKey) as any, database[authKey])
+            mergeProvider(authKey, {
+              source: "custom",
+              options: connOptions,
+            })
+          }
+        }
+      }
+
       // If this is github-copilot plugin, also register for github-copilot-enterprise if auth exists
       if (providerID === "github-copilot") {
         const enterpriseProviderID = "github-copilot-enterprise"
@@ -2074,6 +2110,20 @@ export namespace Provider {
           source: "custom",
           options: result.options,
         })
+      }
+
+      for (const authKey of Object.keys(database)) {
+        const parsed = Auth.parseKey(authKey)
+        if (parsed.provider === providerID && parsed.connection) {
+          const connResult = await fn(database[authKey])
+          if (connResult && (connResult.autoload || providers[authKey])) {
+            if (connResult.getModel) modelLoaders[authKey] = connResult.getModel
+            mergeProvider(authKey, {
+              source: "custom",
+              options: connResult.options,
+            })
+          }
+        }
       }
     }
 
@@ -2370,9 +2420,11 @@ export namespace Provider {
   }
 
   export function parseModel(model: string) {
-    const [providerID, ...rest] = model.split("/")
+    const [providerPart, ...rest] = model.split("/")
+    const parsed = Auth.parseDisplayName(providerPart)
+    const providerID = Auth.formatKey(parsed.provider, parsed.connection)
     return {
-      providerID: providerID,
+      providerID,
       modelID: rest.join("/"),
     }
   }

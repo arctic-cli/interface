@@ -821,6 +821,7 @@ export namespace Server {
           "json",
           z.object({
             title: z.string().optional(),
+            agent: z.string().optional(),
             time: z
               .object({
                 archived: z.number().optional(),
@@ -835,6 +836,9 @@ export namespace Server {
           const updatedSession = await Session.update(sessionID, (session) => {
             if (updates.title !== undefined) {
               session.title = updates.title
+            }
+            if (updates.agent !== undefined) {
+              session.agent = updates.agent
             }
             if (updates.time?.archived !== undefined) session.time.archived = updates.time.archived
           })

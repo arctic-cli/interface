@@ -10,6 +10,7 @@ import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogModel, useConnected } from "@tui/component/dialog-model"
 import { DialogProvider as DialogProviderList } from "@tui/component/dialog-provider"
+import { DialogConnections } from "@tui/component/dialog-connections"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
 import { DialogStatus } from "@tui/component/dialog-status"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
@@ -296,17 +297,20 @@ function App() {
       }
 
       // Priority 1: If text is selected on screen, copy it (regardless of prompt state)
-      if (lastSelectionText) {
+      const currentSelection = renderer.getSelection()?.getSelectedText?.()
+      const textToCopy = currentSelection?.trim() ? currentSelection : lastSelectionText
+
+      if (textToCopy) {
         // When text is selected, just copy it without tracking Ctrl+C presses for exit
         event.preventDefault?.()
         // Use OSC 52 escape sequence for clipboard (works in modern terminals without external tools)
-        const base64 = Buffer.from(lastSelectionText).toString("base64")
+        const base64 = Buffer.from(textToCopy).toString("base64")
         const osc52 = `\x1b]52;c;${base64}\x07`
         const finalOsc52 = process.env["TMUX"] ? `\x1bPtmux;\x1b${osc52}\x1b\\` : osc52
         /* @ts-expect-error */
         renderer.writeOut(finalOsc52)
         // Also try native clipboard as fallback
-        Clipboard.copy(lastSelectionText).catch(() => {
+        Clipboard.copy(textToCopy).catch(() => {
           toast.show({ message: "Failed to copy selection", variant: "error", duration: 3000 })
         })
         // reset the double-press timer when copying selected text
@@ -386,6 +390,16 @@ function App() {
     if (match) {
       continued = true
       route.navigate({ type: "session", sessionID: match })
+    }
+  })
+
+  createEffect(() => {
+    const data = route.data
+    if (data.type === "session") {
+      const session = sync.session.get(data.sessionID)
+      if (session?.agent) {
+        local.agent.restore(session.agent)
+      }
     }
   })
 
@@ -502,6 +516,14 @@ function App() {
       suggested: !connected(),
       onSelect: () => {
         dialog.replace(() => <DialogProviderList />)
+      },
+      category: "Provider",
+    },
+    {
+      title: "Manage connections",
+      value: "provider.connections",
+      onSelect: () => {
+        dialog.replace(() => <DialogConnections />)
       },
       category: "Provider",
     },

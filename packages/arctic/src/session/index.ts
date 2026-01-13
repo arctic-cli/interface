@@ -41,6 +41,7 @@ export namespace Session {
       projectID: z.string(),
       directory: z.string(),
       parentID: Identifier.schema("session").optional(),
+      agent: z.string().optional(),
       summary: z
         .object({
           additions: z.number(),
@@ -159,6 +160,18 @@ export namespace Session {
       draft.time.updated = Date.now()
     })
   })
+
+  export const updateAgent = fn(
+    z.object({
+      sessionID: Identifier.schema("session"),
+      agent: z.string(),
+    }),
+    async (input) => {
+      await update(input.sessionID, (draft) => {
+        draft.agent = input.agent
+      })
+    },
+  )
 
   export async function createNext(input: { id?: string; title?: string; parentID?: string; directory: string }) {
     const result: Info = {

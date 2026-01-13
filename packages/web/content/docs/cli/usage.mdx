@@ -21,9 +21,23 @@ In the TUI prompt:
 
 This opens the Usage dialog with detailed information for all providers.
 
+To manage multiple connections:
+
+```
+/connections
+```
+
+This opens the Manage Connections dialog.
+
 ### Sidebar Usage Display
 
-Usage limits are also displayed in the sidebar (bottom section) for supported providers. This gives you quick visibility into your current usage without opening the full dialog. Supported providers:
+Usage limits are also displayed in the sidebar (bottom section) for supported providers. This gives you quick visibility into your current usage without opening the full dialog.
+
+### Multiple connections per provider
+
+You can connect multiple accounts to the same provider (for example, two Codex accounts) and track usage limits separately for each connection. Use `arctic auth login` in the CLI or `/connect` in the TUI, choose your provider, and you will be prompted to add another connection when one already exists. Use `/connections` to view and manage named connections.
+
+Supported providers:
 
 - Codex
 - Z.ai coding plan
@@ -31,6 +45,8 @@ Usage limits are also displayed in the sidebar (bottom section) for supported pr
 - Google (Gemini)
 - GitHub Copilot
 - Kimi for Coding
+- QwenCode
+- MiniMax
 
 ## What you’ll see
 
@@ -58,5 +74,7 @@ Usage data comes from two sources:
    - GitHub Copilot
    - Google (Gemini Code Assist)
    - Kimi for Coding
+   - QwenCode
+   - MiniMax
 
 If a provider doesn’t expose limits, you’ll still see session token usage and cost, but the limits section may be empty.
