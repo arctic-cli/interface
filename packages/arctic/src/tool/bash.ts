@@ -83,7 +83,7 @@ export const BashTool = Tool.define("bash", async () => {
         throw new Error("Failed to parse command")
       }
       const agent = await Agent.get(ctx.agent)
-
+      
       const checkExternalDirectory = async (dir: string) => {
         if (Filesystem.contains(Instance.directory, dir)) return
         const title = `This command references paths outside of ${Instance.directory}`
@@ -116,8 +116,10 @@ export const BashTool = Tool.define("bash", async () => {
 
       const permissions = agent.permission.bash
 
+      const nodes = tree.rootNode.descendantsOfType("command")
+
       const askPatterns = new Set<string>()
-      for (const node of tree.rootNode.descendantsOfType("command")) {
+      for (const node of nodes) {
         if (!node) continue
         const command = []
         for (let i = 0; i < node.childCount; i++) {
@@ -134,7 +136,7 @@ export const BashTool = Tool.define("bash", async () => {
           }
           command.push(child.text)
         }
-
+        
         // not an exhaustive list, but covers most common cases
         if (["cd", "rm", "cp", "mv", "mkdir", "touch", "chmod", "chown"].includes(command[0])) {
           for (const arg of command.slice(1)) {
@@ -144,7 +146,6 @@ export const BashTool = Tool.define("bash", async () => {
               .nothrow()
               .text()
               .then((x) => x.trim())
-            log.info("resolved path", { arg, resolved })
             if (resolved) {
               // Git Bash on Windows returns Unix-style paths like /c/Users/...
               const normalized =

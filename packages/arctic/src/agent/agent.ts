@@ -287,6 +287,7 @@ function mergeAgentPermissions(basePermission: any, overridePermission: any): Ag
     }
   }
   const merged = mergeDeep(basePermission ?? {}, overridePermission ?? {}) as any
+  
   let mergedBash
   if (merged.bash) {
     if (typeof merged.bash === "string") {
@@ -294,12 +295,17 @@ function mergeAgentPermissions(basePermission: any, overridePermission: any): Ag
         "*": merged.bash,
       }
     } else if (typeof merged.bash === "object") {
-      mergedBash = mergeDeep(
-        {
-          "*": "allow",
-        },
-        merged.bash,
-      )
+      // If we have an object, we want to respect any specific denials from the override
+      // but still allow things that were allowed in base (unless overridden)
+      // and respect the wildcard from the override if present
+      
+      const wildcard = merged.bash["*"] ?? "allow"
+      mergedBash = { ...merged.bash }
+      
+      // Ensure wildcard is set correctly
+      if (!mergedBash["*"]) {
+        mergedBash["*"] = wildcard
+      }
     }
   }
 
