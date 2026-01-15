@@ -44,6 +44,10 @@ export const TuiThreadCommand = cmd({
         type: "string",
         describe: "agent to use",
       })
+      .option("onboarding", {
+        type: "boolean",
+        describe: "show onboarding flow",
+      })
       ,
   handler: async (args) => {
     // Resolve relative paths against PWD to preserve behavior when using --cwd flag
@@ -96,6 +100,7 @@ export const TuiThreadCommand = cmd({
         agent: args.agent,
         model: args.model,
         prompt,
+        onboarding: args.onboarding,
       },
       onExit: async () => {
         await client.call("shutdown", undefined)

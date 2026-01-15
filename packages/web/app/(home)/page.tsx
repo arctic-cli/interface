@@ -53,15 +53,15 @@ async function joinWaitlist(_prevState: WaitlistState, formData: FormData): Prom
 export default function HomePage() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden antialiased relative">
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 right-0">
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden md:block">
         <div className="absolute inset-y-0 left-16 w-px bg-[hsl(0,4%,23%)]" />
         <div className="absolute inset-y-0 right-16 w-px bg-[hsl(0,4%,23%)]" />
       </div>
       <Navbar />
       <GridBackground className="relative">
-        <section className="px-6 pt-32 pb-16 md:pt-48 md:pb-20 relative z-10">
+        <section className="pt-32 pb-16 md:pt-48 md:pb-20 relative z-10">
           <div className="mx-auto max-w-7xl">
-            <div className="flex flex-col items-center text-center space-y-12">
+            <div className="flex flex-col items-center text-center space-y-12 px-6 md:px-16">
               <div className="space-y-6 max-w-4xl">
                 <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-foreground/95 leading-[0.95] md:leading-[0.95]">
                   Arctic
@@ -125,7 +125,15 @@ export default function HomePage() {
 
               <div className="w-full mt-8">
                 <div className="rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-black/5">
-                  <video src="/arctic.mp4" autoPlay playsInline loop muted preload="auto" className="w-full h-auto">
+                  <video
+                    src="/arctic.mp4"
+                    autoPlay
+                    playsInline
+                    loop
+                    muted
+                    preload="auto"
+                    className="w-full h-auto block"
+                  >
                     Your browser does not support the video tag.
                   </video>
                 </div>
@@ -135,13 +143,13 @@ export default function HomePage() {
         </section>
       </GridBackground>
 
-      <div className="px-16">
+      <div className="px-6 md:px-16">
         <div className="h-px w-full bg-[hsl(0,4%,23%)]" />
       </div>
 
-      <section className="px-6 py-32">
-        <div className="mx-auto max-w-7xl">
-          <div className="space-y-12">
+      <section className="py-32">
+        <div className="mx-auto max-w-7xl 2xl:px-0 px-8">
+          <div className="space-y-12 px-6 md:px-16">
             <div className="space-y-4">
               <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">FAQ</h2>
               <p className="text-lg text-muted-foreground">Common questions about Arctic.</p>
@@ -202,32 +210,36 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="px-6 py-24">
-        <div className="mx-auto max-w-7xl space-y-6">
-          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
-            What makes Arctic different from OpenCode?
-          </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            While OpenCode focuses on being an open source AI coding agent, Arctic is built specifically for developers
-            who need to manage multiple AI subscriptions and accounts. Arctic lets you switch between personal and
-            enterprise accounts, see your usage limits in real-time, and track your spending across all providers
-            without leaving your terminal.
-          </p>
+      <section className="py-24">
+        <div className="mx-auto max-w-7xl 2xl:px-0 px-8">
+          <div className="space-y-6 px-6 md:px-16">
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              What makes Arctic different from OpenCode?
+            </h2>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              While OpenCode focuses on being an open source AI coding agent, Arctic is built specifically for
+              developers who need to manage multiple AI subscriptions and accounts. Arctic lets you switch between
+              personal and enterprise accounts, see your usage limits in real-time, and track your spending across all
+              providers without leaving your terminal.
+            </p>
+          </div>
         </div>
       </section>
 
-      <div className="px-16">
+      <div className="px-6 md:px-16">
         <div className="h-px w-full bg-[hsl(0,4%,23%)]" />
       </div>
 
       <GridBackground className="">
-        <section className="px-6 py-32">
-          <div className="mx-auto max-w-7xl text-center space-y-8">
-            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Join the waitlist.</h2>
-            <p className="text-lg text-muted-foreground">
-              Get early access updates and release notes straight to your inbox.
-            </p>
-            <WaitlistForm action={joinWaitlist} />
+        <section className="py-32">
+          <div className="mx-auto max-w-7xl">
+            <div className="text-center space-y-8 px-6 md:px-16">
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Join the waitlist.</h2>
+              <p className="text-lg text-muted-foreground">
+                Get early access updates and release notes straight to your inbox.
+              </p>
+              <WaitlistForm action={joinWaitlist} />
+            </div>
           </div>
         </section>
       </GridBackground>

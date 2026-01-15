@@ -23,6 +23,7 @@ import { SyncProvider, useSync } from "@tui/context/sync"
 import { ThemeProvider, useTheme } from "@tui/context/theme"
 import { Home } from "@tui/routes/home"
 import { Session } from "@tui/routes/session"
+import { Onboarding } from "@tui/routes/onboarding"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
 import { Clipboard } from "@tui/util/clipboard"
 import fs from "fs/promises"
@@ -363,6 +364,10 @@ function App() {
   const args = useArgs()
   onMount(() => {
     batch(() => {
+      if (args.onboarding) {
+        route.navigate({ type: "onboarding", step: "welcome" })
+        return
+      }
       if (args.agent) local.agent.set(args.agent)
       if (args.model) {
         const { providerID, modelID } = Provider.parseModel(args.model)
@@ -405,11 +410,13 @@ function App() {
 
   createEffect(
     on(
-      () => sync.status === "complete" && sync.data.provider.length === 0,
-      (isEmpty, wasEmpty) => {
-        // only trigger when we transition into an empty-provider state
-        if (!isEmpty || wasEmpty) return
-        dialog.replace(() => <DialogProviderList />)
+      () => sync.status === "complete" && sync.data.provider.length === 0 && !kv.get("onboarding_completed", false),
+      (shouldOnboard, wasOnboarding) => {
+        // only trigger when we transition into an onboarding state
+        if (!shouldOnboard || wasOnboarding) return
+        if (route.data.type === "home") {
+          route.navigate({ type: "onboarding", step: "welcome" })
+        }
       },
     ),
   )
@@ -815,6 +822,9 @@ function App() {
     >
       <ExitConfirmationProvider exitConfirmation={exitConfirmation}>
         <Switch>
+          <Match when={route.data.type === "onboarding"}>
+            <Onboarding />
+          </Match>
           <Match when={route.data.type === "home"}>
             <Home />
           </Match>

@@ -12,7 +12,12 @@ export type SessionRoute = {
   sessionID: string
 }
 
-export type Route = HomeRoute | SessionRoute
+export type OnboardingRoute = {
+  type: "onboarding"
+  step: "welcome" | "theme" | "provider" | "agents" | "commands" | "complete"
+}
+
+export type Route = HomeRoute | SessionRoute | OnboardingRoute
 
 export const { use: useRoute, provider: RouteProvider } = createSimpleContext({
   name: "Route",

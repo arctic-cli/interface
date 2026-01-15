@@ -414,6 +414,9 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
     return isMinimax && hasLimits
   })
 
+  const isAntigravity = createMemo(() => props.record.providerID === "antigravity")
+  const hideTokenUsage = createMemo(() => isMiniMaxWithLimits() || isAntigravity())
+
   const costLabel = "Session Cost"
 
   return (
@@ -435,7 +438,7 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
           </text>
         )}
       </Show>
-      <Show when={!isMiniMaxWithLimits()}>
+      <Show when={!hideTokenUsage()}>
         <Show when={props.record.tokenUsage}>
           {(usage) => (
             <box>
@@ -466,7 +469,7 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
           )}
         </Show>
       </Show>
-      <Show when={!isMiniMaxWithLimits()}>
+      <Show when={!hideTokenUsage()}>
         <Show when={props.record.costSummary}>
           {(cost) => (
             <box>
