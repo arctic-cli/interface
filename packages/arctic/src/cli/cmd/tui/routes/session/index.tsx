@@ -48,6 +48,7 @@ import {
   Match,
   on,
   onCleanup,
+  onMount,
   Show,
   Switch,
   useContext,
@@ -68,6 +69,8 @@ import { DialogMessage } from "./dialog-message"
 import { DialogTimeline } from "./dialog-timeline"
 import { Footer } from "./footer.tsx"
 import { Sidebar } from "./sidebar"
+import { getRandomWord, createShimmerFrames, createShimmerColors } from "@tui/ui/shimmer-text"
+import "opentui-spinner/solid"
 
 addDefaultParsers(parsers.parsers)
 
@@ -1490,8 +1493,33 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     return !next || next.role === "user"
   })
 
+  const isPending = createMemo(() => !props.message.time.completed && props.parts.length === 0)
+
   return (
     <>
+      <Show when={isPending()}>
+        {(() => {
+          const [word, setWord] = createSignal(getRandomWord())
+          const keybind = useKeybind()
+          const ctx = use()
+          onMount(() => {
+            const timer = setInterval(() => setWord(getRandomWord()), 4000)
+            onCleanup(() => clearInterval(timer))
+          })
+          const frames = createMemo(() => createShimmerFrames(word(), { color: theme.primary, baseColor: theme.textMuted }))
+          const colors = createMemo(() => createShimmerColors(word(), { color: theme.primary, baseColor: theme.textMuted }))
+          return (
+            <box paddingLeft={2} marginTop={1} flexDirection="row" gap={1}>
+              {/* @ts-ignore */}
+              <spinner frames={frames()} color={colors()} interval={60} />
+              <text fg={ctx.interruptCount() > 0 ? theme.primary : theme.textMuted}>
+                (press {keybind.print("session_interrupt")}
+                {ctx.interruptCount() > 0 ? " again" : ""} to interrupt)
+              </text>
+            </box>
+          )
+        })()}
+      </Show>
       <For each={props.parts}>
         {(part, index) => {
           const component = createMemo(() => PART_MAPPING[part.type as keyof typeof PART_MAPPING])
@@ -1533,30 +1561,10 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
   const keybind = useKeybind()
   const content = createMemo(() => props.part.text.replace("[REDACTED]", "").trim())
   const isThinking = createMemo(() => !props.part.time?.end)
-  const [tick, setTick] = createSignal(0)
   const duration = createMemo(() => {
     if (!props.part.time) return
     const end = props.part.time.end ?? Date.now()
     return end - props.part.time.start
-  })
-  const thinkingColor = createMemo(() => {
-    const base = theme.textMuted
-    if (!isThinking() || ctx.showThinking()) return base
-    const steps = 6
-    const step = tick() % (steps + 1)
-    const factor = 1 - (step / steps) * 0.5
-    return RGBA.fromValues(base.r * factor, base.g * factor, base.b * factor, base.a)
-  })
-
-  createEffect(() => {
-    if (!isThinking() || ctx.showThinking()) {
-      setTick(0)
-      return
-    }
-    const timer = setInterval(() => {
-      setTick((value) => value + 1)
-    }, 1000)
-    onCleanup(() => clearInterval(timer))
   })
 
   return (
@@ -1595,12 +1603,20 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
                   </text>
                 }
               >
-                <text fg={thinkingColor()}>
-                  Thinking
-                  <Show when={keybind.print("thinking_toggle")}>
-                    {(hint) => <span style={{ fg: theme.textMuted }}> · {hint()} to view</span>}
-                  </Show>
-                </text>
+                {(() => {
+                  const thinkingText = "Thinking"
+                  const frames = createMemo(() => createShimmerFrames(thinkingText, { color: theme.text, baseColor: theme.textMuted }))
+                  const colors = createMemo(() => createShimmerColors(thinkingText, { color: theme.text, baseColor: theme.textMuted }))
+                  return (
+                    <box flexDirection="row">
+                      {/* @ts-ignore */}
+                      <spinner frames={frames()} color={colors()} interval={60} />
+                      <Show when={keybind.print("thinking_toggle")}>
+                        {(hint) => <text fg={theme.textMuted}> · {hint()} to view</text>}
+                      </Show>
+                    </box>
+                  )
+                })()}
               </Show>
             </box>
           </Match>

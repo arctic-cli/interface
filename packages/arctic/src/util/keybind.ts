@@ -41,6 +41,7 @@ export namespace Keybind {
     if (info.shift) parts.push("shift")
     if (info.name) {
       if (info.name === "delete") parts.push("del")
+      else if (info.name === "escape") parts.push("esc")
       else parts.push(info.name)
     }
 

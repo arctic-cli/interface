@@ -1,0 +1,27 @@
+[data-component="shimmer-text"] {
+  display: inline-flex;
+  font-weight: 500;
+}
+
+.shimmer-bullet {
+  color: var(--text-weak);
+}
+
+.shimmer-char {
+  display: inline-block;
+  color: var(--text-weak);
+  animation: shimmer-sweep 2s ease-in-out infinite;
+  animation-delay: calc(var(--char-index) * 0.08s);
+}
+
+@keyframes shimmer-sweep {
+  0%,
+  100% {
+    color: var(--text-weak);
+    text-shadow: none;
+  }
+  50% {
+    color: var(--text-interactive-base);
+    text-shadow: 0 0 8px var(--text-interactive-base);
+  }
+}

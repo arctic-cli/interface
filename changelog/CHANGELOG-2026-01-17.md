@@ -22,7 +22,24 @@
 - Add Codex to auth login command with proper ordering and description
 - Fix Codex model ID mapping (gpt-5.1 to gpt-5.2)
 
+### Onboarding ESC key handling
+
+- Fix ESC in provider dialog closing entire onboarding instead of just the dialog
+- Prevent ESC from skipping onboarding (only 's' key should skip, as UI indicates)
+- Add `defaultPrevented` check to respect dialog keyboard handling
+
+### Onboarding button text invisible on transparent themes
+
+- Fix button text using `theme.background` which is transparent on Arctic theme
+- Use `selectedForeground()` helper to calculate proper contrast color for button text
+
 ## Features
+
+### Shimmer "working" text indicator
+
+- Add animated shimmer text component for TUI
+- Display "working" indicator when AI is processing but no visible output yet
+- Add CSS shimmer animation for web UI component
 
 ### Transparent color themes
 
@@ -55,4 +72,4 @@
 
 ---
 
-**Summary**: This release fixes several UX issues including AI responses not properly completing, OpenCode project configs not being imported, and Codex missing from the provider list. New transparent themes are added for users who want terminal background visibility. The README is redesigned with a cleaner, less marketing-heavy style.
+**Summary**: This release fixes several UX issues including AI responses not properly completing, OpenCode project configs not being imported, Codex missing from the provider list, and onboarding flow issues with ESC key handling and button visibility on transparent themes. New transparent themes and a shimmer "working" indicator are added. The README is redesigned with a cleaner, less marketing-heavy style.

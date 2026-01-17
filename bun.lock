@@ -117,17 +117,17 @@
         "zod-to-json-schema": "3.24.5",
       },
       "optionalDependencies": {
-        "@arctic-cli/arctic-darwin-arm64": "0.0.4-beta",
-        "@arctic-cli/arctic-darwin-x64": "0.0.4-beta",
-        "@arctic-cli/arctic-darwin-x64-baseline": "0.0.4-beta",
-        "@arctic-cli/arctic-linux-arm64": "0.0.4-beta",
-        "@arctic-cli/arctic-linux-arm64-musl": "0.0.4-beta",
-        "@arctic-cli/arctic-linux-x64": "0.0.4-beta",
-        "@arctic-cli/arctic-linux-x64-baseline": "0.0.4-beta",
-        "@arctic-cli/arctic-linux-x64-baseline-musl": "0.0.4-beta",
-        "@arctic-cli/arctic-linux-x64-musl": "0.0.4-beta",
-        "@arctic-cli/arctic-windows-x64": "0.0.4-beta",
-        "@arctic-cli/arctic-windows-x64-baseline": "0.0.4-beta",
+        "@arctic-cli/arctic-darwin-arm64": "beta",
+        "@arctic-cli/arctic-darwin-x64": "beta",
+        "@arctic-cli/arctic-darwin-x64-baseline": "beta",
+        "@arctic-cli/arctic-linux-arm64": "beta",
+        "@arctic-cli/arctic-linux-arm64-musl": "beta",
+        "@arctic-cli/arctic-linux-x64": "beta",
+        "@arctic-cli/arctic-linux-x64-baseline": "beta",
+        "@arctic-cli/arctic-linux-x64-baseline-musl": "beta",
+        "@arctic-cli/arctic-linux-x64-musl": "beta",
+        "@arctic-cli/arctic-windows-x64": "beta",
+        "@arctic-cli/arctic-windows-x64-baseline": "beta",
       },
     },
     "packages/plugin": {
@@ -328,6 +328,28 @@
     "@ampproject/remapping": ["@ampproject/remapping@2.3.0", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw=="],
 
     "@arctic-cli/arctic": ["@arctic-cli/arctic@workspace:packages/arctic"],
+
+    "@arctic-cli/arctic-darwin-arm64": ["@arctic-cli/arctic-darwin-arm64@0.0.0-main-202601161423", "", { "os": "darwin", "cpu": "arm64" }, "sha512-VTUuntPYRTG5ixuxToaaLEL9UhxGyZ9qXzPtuMCfhTdIl2H7Ncl267bTngvpfzRpR7q4SYT6/REHX5B0m2hZpQ=="],
+
+    "@arctic-cli/arctic-darwin-x64": ["@arctic-cli/arctic-darwin-x64@0.0.0-main-202601161423", "", { "os": "darwin", "cpu": "x64" }, "sha512-Si2FRVbYgyUnrMMQsNy2xIRaotfPexkmzTbd2J2Ni5C0M4per+RRj6m0O7/+OE7uEjCj/rUcUlUcwQJyDAF7dQ=="],
+
+    "@arctic-cli/arctic-darwin-x64-baseline": ["@arctic-cli/arctic-darwin-x64-baseline@0.0.0-main-202601161423", "", { "os": "darwin", "cpu": "x64" }, "sha512-9izyklsCoaEEIuYDJm1k6t+AK1z6uWtav6WnlFy+OgN9dhjw2jrHHzk9rzEobdpoMSnb5bgMMpXEyasU1F0FSQ=="],
+
+    "@arctic-cli/arctic-linux-arm64": ["@arctic-cli/arctic-linux-arm64@0.0.0-main-202601161423", "", { "os": "linux", "cpu": "arm64" }, "sha512-TSBlTXet9x/lP2gBaEy7YRRDlNWRMZr1dQeEbfrHWWegB8f9WrKSTPwil1XCFm7omTviJaEMfESSj6DAGAepQA=="],
+
+    "@arctic-cli/arctic-linux-arm64-musl": ["@arctic-cli/arctic-linux-arm64-musl@0.0.0-main-202601161423", "", { "os": "linux", "cpu": "arm64" }, "sha512-PRSyB+mpvoqISXhpb+ZJabWnhAC2+8GoVOlTSlhovSzJPukpaAsufr3CAbgHt4uf1Upl4fIFaAsu7HJ5j9JShw=="],
+
+    "@arctic-cli/arctic-linux-x64": ["@arctic-cli/arctic-linux-x64@0.0.0-main-202601161423", "", { "os": "linux", "cpu": "x64" }, "sha512-gF2bp/qA3rztyZKLyhvL8W1OexxSvhAvcuJYNAHAXJkC/bQdWPbYtf+a6nHJeF0zk5nXkhPZjahSygG/U1p9mw=="],
+
+    "@arctic-cli/arctic-linux-x64-baseline": ["@arctic-cli/arctic-linux-x64-baseline@0.0.0-main-202601161423", "", { "os": "linux", "cpu": "x64" }, "sha512-aRw/FoEbfM182O6os4OmgIX9gd972mCHTIkvtKNrNUX6x8iZVCsC6fUWPoBG3aG/1fkGCSTRBfwnejHt1EXuCQ=="],
+
+    "@arctic-cli/arctic-linux-x64-baseline-musl": ["@arctic-cli/arctic-linux-x64-baseline-musl@0.0.0-main-202601161423", "", { "os": "linux", "cpu": "x64" }, "sha512-sM8IYarrGKTfFJePLUlweORm6TJeCxH7Gf07crCq2nYn+GLz0fyBp2w+Dq4g/8JSNGhOzwZ5RJKVFt1tImoczg=="],
+
+    "@arctic-cli/arctic-linux-x64-musl": ["@arctic-cli/arctic-linux-x64-musl@0.0.0-main-202601161423", "", { "os": "linux", "cpu": "x64" }, "sha512-/uxoPzShCGK7TOBadE4oD+IE582UKmXl+F1eh+LdTslDtbdyfaE5skxUh6KGwCO0aIKwvFwIMoHsjJN0cxZZ/w=="],
+
+    "@arctic-cli/arctic-windows-x64": ["@arctic-cli/arctic-windows-x64@0.0.0-main-202601161423", "", { "os": "win32", "cpu": "x64" }, "sha512-5i3wlLQJrRd+WAmAA16wVPjAP6bdQ52+qiaElSHv76h+Wfo09vOo0bG4Gk/tU2FOVfZ1MnqFoRPLUhYffKdVlA=="],
+
+    "@arctic-cli/arctic-windows-x64-baseline": ["@arctic-cli/arctic-windows-x64-baseline@0.0.0-main-202601161423", "", { "os": "win32", "cpu": "x64" }, "sha512-c1GkR7YwpdMbHPz5mwXcEPf6rRb9VzhRaBQ9HgQSksOTYhIT2kkVvZzxVcW6VIzOx9S10TTZXnGYXCzG6LBEuw=="],
 
     "@arctic-cli/plugin": ["@arctic-cli/plugin@workspace:packages/plugin"],
 

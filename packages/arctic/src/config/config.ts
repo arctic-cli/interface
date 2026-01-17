@@ -610,7 +610,8 @@ export namespace Config {
     })
   export type Agent = z.infer<typeof Agent>
 
-  const selectionCopyDefault = process.platform === "darwin" ? "super+c" : "ctrl+shift+c"
+  const selectionCopyDefault = process.platform === "darwin" ? "super+c,meta+c" : "ctrl+shift+c"
+  const inputPasteDefault = process.platform === "darwin" ? "super+v,meta+v" : "ctrl+v"
 
   export const Keybinds = z
     .object({
@@ -659,7 +660,7 @@ export namespace Config {
       agent_cycle: z.string().optional().default("tab").describe("Next agent"),
       agent_cycle_reverse: z.string().optional().default("shift+tab").describe("Previous agent"),
       input_clear: z.string().optional().default("ctrl+c").describe("Clear input field"),
-      input_paste: z.string().optional().default("ctrl+v").describe("Paste from clipboard"),
+      input_paste: z.string().optional().default(inputPasteDefault).describe("Paste from clipboard"),
       input_submit: z.string().optional().default("return").describe("Submit input"),
       input_newline: z.string().optional().default("ctrl+j").describe("Insert newline in input"),
       input_move_left: z.string().optional().default("left,ctrl+b").describe("Move cursor left in input"),

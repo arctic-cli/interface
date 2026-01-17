@@ -1,7 +1,7 @@
 import { TextAttributes } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { useRoute } from "@tui/context/route"
-import { useTheme } from "@tui/context/theme"
+import { useTheme, selectedForeground } from "@tui/context/theme"
 import { useKV } from "@tui/context/kv"
 import { useExit } from "@tui/context/exit"
 import { useLocal } from "@tui/context/local"
@@ -53,7 +53,7 @@ export function OnboardingAgents() {
     if (event.name === "return" || event.name === "space") {
       route.navigate({ type: "onboarding", step: "commands" })
     }
-    if (event.name === "escape" || event.name === "s") {
+    if (event.name === "s" && !event.ctrl) {
       kv.set("onboarding_completed", true)
       route.navigate({ type: "home" })
     }
@@ -146,7 +146,7 @@ export function OnboardingAgents() {
           paddingBottom={1}
           backgroundColor={theme.primary}
         >
-          <text fg={theme.background} attributes={TextAttributes.BOLD}>
+          <text fg={selectedForeground(theme)} attributes={TextAttributes.BOLD}>
             Press Enter to continue
           </text>
         </box>

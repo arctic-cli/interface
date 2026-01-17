@@ -17,6 +17,7 @@ import { Card } from "./card"
 import { Dynamic } from "solid-js/web"
 import { Button } from "./button"
 import { Spinner } from "./spinner"
+import { ShimmerText } from "./shimmer-text"
 import { createStore } from "solid-js/store"
 import { DateTime, DurationUnit, Interval } from "luxon"
 
@@ -332,6 +333,9 @@ export function SessionTurn(
                         <Spinner />
                       </Show>
                       <Switch>
+                        <Match when={working() && isIdle() && !store.status}>
+                          <ShimmerText />
+                        </Match>
                         <Match when={working()}>{store.status ?? "Considering next steps"}</Match>
                         <Match when={store.stepsExpanded}>Hide steps</Match>
                         <Match when={!store.stepsExpanded}>Show steps</Match>
