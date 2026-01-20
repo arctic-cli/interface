@@ -266,6 +266,7 @@ export namespace ProviderTransform {
     model: Provider.Model,
     sessionID: string,
     providerOptions?: Record<string, any>,
+    thinkingLevel?: "low" | "medium" | "high",
   ): Record<string, any> {
     const result: Record<string, any> = {}
     const supportsThinking =
@@ -276,7 +277,7 @@ export namespace ProviderTransform {
         include: true,
       }
       if (model.api.id.includes("gemini-3")) {
-        result["reasoning"] = { effort: "high" }
+        result["reasoning"] = { effort: thinkingLevel ?? "high" }
       }
     }
 
@@ -296,7 +297,7 @@ export namespace ProviderTransform {
         includeThoughts: true,
       }
       if (model.api.id.includes("gemini-3")) {
-        result["thinkingConfig"]["thinkingLevel"] = "high"
+        result["thinkingConfig"]["thinkingLevel"] = thinkingLevel ?? "high"
       }
     }
 
@@ -306,7 +307,7 @@ export namespace ProviderTransform {
       }
 
       if (!model.api.id.includes("codex") && !model.api.id.includes("gpt-5-pro")) {
-        result["reasoningEffort"] = "medium"
+        result["reasoningEffort"] = thinkingLevel ?? "medium"
       }
 
       if (model.api.id.endsWith("gpt-5.") && model.providerID !== "azure") {

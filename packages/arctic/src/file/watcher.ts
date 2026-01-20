@@ -27,17 +27,29 @@ export namespace FileWatcher {
   }
 
   const watcher = lazy(() => {
-    const libc = typeof ARCTIC_LIBC !== "undefined" ? ARCTIC_LIBC : "glibc"
-    const binding = require(
-      `@parcel/watcher-${process.platform}-${process.arch}${process.platform === "linux" ? `-${libc}` : ""}`,
-    )
-    return createWrapper(binding) as typeof import("@parcel/watcher")
+    try {
+      const libc = typeof ARCTIC_LIBC !== "undefined" ? ARCTIC_LIBC : "glibc"
+      const binding = require(
+        `@parcel/watcher-${process.platform}-${process.arch}${process.platform === "linux" ? `-${libc}` : ""}`,
+      )
+      return createWrapper(binding) as typeof import("@parcel/watcher")
+    } catch (e) {
+      log.warn("failed to load native watcher binding, file watching disabled", { error: e })
+      return null
+    }
   })
 
   const state = Instance.state(
     async () => {
       if (Instance.project.vcs !== "git") return {}
       log.info("init")
+      
+      const w = watcher()
+      if (!w) {
+        log.warn("watcher not available, skipping initialization")
+        return {}
+      }
+
       const cfg = await Config.get()
       const backend = (() => {
         if (process.platform === "win32") return "windows"
@@ -62,7 +74,7 @@ export namespace FileWatcher {
       const cfgIgnores = cfg.watcher?.ignore ?? []
 
       subs.push(
-        await watcher().subscribe(Instance.directory, subscribe, {
+        await w.subscribe(Instance.directory, subscribe, {
           ignore: [...FileIgnore.PATTERNS, ...cfgIgnores],
           backend,
         }),
@@ -71,7 +83,7 @@ export namespace FileWatcher {
       const vcsDir = await $`git rev-parse --git-dir`.quiet().nothrow().cwd(Instance.worktree).text()
       if (vcsDir && !cfgIgnores.includes(".git") && !cfgIgnores.includes(vcsDir)) {
         subs.push(
-          await watcher().subscribe(vcsDir, subscribe, {
+          await w.subscribe(vcsDir, subscribe, {
             ignore: ["hooks", "info", "logs", "objects", "refs", "worktrees", "modules", "lfs"],
             backend,
           }),

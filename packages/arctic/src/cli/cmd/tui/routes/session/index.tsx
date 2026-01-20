@@ -20,6 +20,7 @@ import {
   BoxRenderable,
   MacOSScrollAccel,
   ScrollBoxRenderable,
+  TextAttributes,
   type ScrollAcceleration,
 } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions, type BoxProps, type JSX } from "@opentui/solid"
@@ -1388,32 +1389,12 @@ function UserMessage(props: {
   return (
     <>
       <Show when={text()}>
-        <box id={props.message.id} marginTop={props.index === 0 ? 0 : 1}>
+        <box id={props.message.id} marginTop={1}>
           <box onMouseUp={props.onMouseUp} paddingTop={0} paddingBottom={0}>
-            <box
-              paddingLeft={1}
-              paddingRight={1}
-              backgroundColor={theme.backgroundElement}
-              flexDirection="row"
-            >
-              <text fg={theme.textMuted}>{"> "}</text>
+            <box paddingLeft={0} paddingRight={1} flexDirection="row">
+              <text fg={theme.textMuted} attributes={TextAttributes.BOLD}>{"> "}</text>
               <box flexGrow={1} flexShrink={1}>
-                <Switch>
-                  <Match when={ctx.userMessageMarkdown()}>
-                    <code
-                      filetype="markdown"
-                      drawUnstyledText={false}
-                      streaming={false}
-                      syntaxStyle={syntax()}
-                      content={formatUserText(text()?.text ?? "")}
-                      conceal={ctx.conceal()}
-                      fg={theme.textMuted}
-                    />
-                  </Match>
-                  <Match when={!ctx.userMessageMarkdown()}>
-                    <text fg={theme.textMuted}>{formatUserText(text()?.text ?? "")}</text>
-                  </Match>
-                </Switch>
+                <text fg={theme.primary}>{formatUserText(text()?.text ?? "")}</text>
               </box>
             </box>
             <Show when={files().length}>
@@ -1583,15 +1564,7 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
       {(text) => (
         <Switch>
           <Match when={ctx.showThinking()}>
-            <box
-              id={"text-" + props.part.id}
-              paddingLeft={2}
-              marginTop={1}
-              flexDirection="column"
-              border={["left"]}
-              customBorderChars={SplitBorder.customBorderChars}
-              borderColor={theme.backgroundElement}
-            >
+            <box paddingLeft={1} paddingRight={1} flexDirection="row">
               <code
                 filetype="markdown"
                 drawUnstyledText={false}
@@ -1731,7 +1704,7 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
             marginTop: 1,
             gap: 1,
             customBorderChars: SplitBorder.customBorderChars,
-            borderColor: permissionIndex === 0 ? theme.warning : theme.background,
+            borderColor: permissionIndex === 0 ? theme.warning : theme.borderSubtle,
           }
         : {
             paddingLeft: 3,

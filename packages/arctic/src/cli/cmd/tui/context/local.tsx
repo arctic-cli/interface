@@ -13,6 +13,9 @@ import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 
+export type ThinkingLevel = "low" | "medium" | "high"
+const THINKING_LEVELS: ThinkingLevel[] = ["low", "medium", "high"]
+
 export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   name: "Local",
   init: () => {
@@ -342,10 +345,63 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       },
     }
 
+    const thinking = iife(() => {
+      const file = Bun.file(path.join(Global.Path.state, "thinking.json"))
+
+      const [thinkingStore, setThinkingStore] = createStore<{
+        level: ThinkingLevel
+      }>({
+        level: "medium",
+      })
+
+      file
+        .json()
+        .then((x) => {
+          if (x.level && THINKING_LEVELS.includes(x.level)) {
+            setThinkingStore("level", x.level)
+          }
+        })
+        .catch(() => {})
+
+      function save() {
+        Bun.write(file, JSON.stringify({ level: thinkingStore.level }))
+      }
+
+      return {
+        current() {
+          return thinkingStore.level
+        },
+        set(level: ThinkingLevel) {
+          setThinkingStore("level", level)
+          save()
+        },
+        cycle() {
+          const m = model.current()
+          if (!m) return
+          const provider = sync.data.provider.find((x) => x.id === m.providerID)
+          const info = provider?.models[m.modelID]
+          if (!info?.capabilities.reasoning) return
+          const current = thinkingStore.level
+          const index = THINKING_LEVELS.indexOf(current)
+          const next = THINKING_LEVELS[(index + 1) % THINKING_LEVELS.length]!
+          setThinkingStore("level", next)
+          save()
+        },
+        supportsReasoning() {
+          const m = model.current()
+          if (!m) return false
+          const provider = sync.data.provider.find((x) => x.id === m.providerID)
+          const info = provider?.models[m.modelID]
+          return info?.capabilities.reasoning ?? false
+        },
+      }
+    })
+
     const result = {
       model,
       agent,
       mcp,
+      thinking,
     }
     return result
   },

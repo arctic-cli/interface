@@ -170,7 +170,10 @@ export namespace Storage {
     const target = path.join(dir, ...key) + ".json"
     return withErrorHandling(async () => {
       using _ = await Lock.read(target)
-      const result = await Bun.file(target).json()
+      const result = await Bun.file(target).json().catch((e) => {
+        log.error("failed to parse JSON", { target, error: e.message })
+        throw e
+      })
       return result as T
     })
   }
@@ -202,6 +205,11 @@ export namespace Storage {
       const errnoException = e as NodeJS.ErrnoException
       if (errnoException.code === "ENOENT") {
         throw new NotFoundError({ message: `Resource not found: ${errnoException.path}` })
+      }
+      // handle JSON parse errors gracefully
+      if (e instanceof SyntaxError && e.message.includes("JSON")) {
+        log.warn("corrupted JSON file, skipping", { error: e.message })
+        throw new NotFoundError({ message: `Corrupted file: ${e.message}` })
       }
       throw e
     })

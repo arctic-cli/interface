@@ -86,7 +86,7 @@ async function main() {
   console.log("🔧 Arctic dist-tag fix script\n")
 
   const version = await getVersionToFix()
-  const tagsToAdd = ["main"]
+  const tagsToAdd = ["main", "latest"]
 
   console.log(`\nTarget version: ${version}`)
   console.log(`Tags to add: ${tagsToAdd.join(", ")}`)

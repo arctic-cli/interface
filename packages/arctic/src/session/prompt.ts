@@ -103,6 +103,7 @@ export namespace SessionPrompt {
     noReply: z.boolean().optional(),
     system: z.string().optional(),
     tools: z.record(z.string(), z.boolean()).optional(),
+    thinkingLevel: z.enum(["low", "medium", "high"]).optional(),
     parts: z.array(
       z.discriminatedUnion("type", [
         MessageV2.TextPart.omit({
@@ -682,7 +683,7 @@ export namespace SessionPrompt {
           topK: ProviderTransform.topK(model),
           options: pipe(
             {},
-            mergeDeep(ProviderTransform.options(model, sessionID, provider?.options)),
+            mergeDeep(ProviderTransform.options(model, sessionID, provider?.options, lastUser.thinkingLevel)),
             mergeDeep(model.options),
             mergeDeep(agent.options),
           ),
@@ -1065,6 +1066,7 @@ export namespace SessionPrompt {
       system: input.system,
       agent: agent.name,
       model: input.model ?? agent.model ?? (await lastModel(input.sessionID)),
+      thinkingLevel: input.thinkingLevel,
     }
 
     const parts = await Promise.all(

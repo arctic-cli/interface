@@ -305,6 +305,7 @@ export namespace MessageV2 {
     }),
     system: z.string().optional(),
     tools: z.record(z.string(), z.boolean()).optional(),
+    thinkingLevel: z.enum(["low", "medium", "high"]).optional(),
   }).meta({
     ref: "UserMessage",
   })

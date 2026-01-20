@@ -651,6 +651,7 @@ export namespace Config {
         .default("<leader>h")
         .describe("Toggle code block concealment in messages"),
       thinking_toggle: z.string().optional().default("<leader>i").describe("Toggle thinking display"),
+      thinking_level_cycle: z.string().optional().default("ctrl+t").describe("Cycle thinking level (low/medium/high)"),
       tool_details: z.string().optional().default("none").describe("Toggle tool details visibility"),
       model_list: z.string().optional().default("<leader>m").describe("List available models"),
       model_cycle_recent: z.string().optional().default("f2").describe("Next recently used model"),

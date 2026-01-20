@@ -170,6 +170,7 @@ export type UserMessage = {
   tools?: {
     [key: string]: boolean
   }
+  thinkingLevel?: "low" | "medium" | "high"
 }
 
 export type ProviderAuthError = {
@@ -945,6 +946,10 @@ export type KeybindsConfig = {
    * Toggle thinking display
    */
   thinking_toggle?: string
+  /**
+   * Cycle thinking level (low/medium/high)
+   */
+  thinking_level_cycle?: string
   /**
    * Toggle tool details visibility
    */
@@ -1757,6 +1762,7 @@ export type Provider = {
   models: {
     [key: string]: Model
   }
+  baseProvider?: string
 }
 
 export type ProviderAuthMethod = {
@@ -3024,6 +3030,7 @@ export type SessionPromptData = {
     tools?: {
       [key: string]: boolean
     }
+    thinkingLevel?: "low" | "medium" | "high"
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {
@@ -3119,6 +3126,7 @@ export type SessionPromptAsyncData = {
     tools?: {
       [key: string]: boolean
     }
+    thinkingLevel?: "low" | "medium" | "high"
     parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
   }
   path: {

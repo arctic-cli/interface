@@ -500,7 +500,7 @@ async function aggregateStats(dateFilter?: DateFilter): Promise<SessionStats> {
     const batch = sessions.slice(i, i + BATCH_SIZE)
     const batchResults = await Promise.all(
       batch.map(async (session) => {
-        const messages = await Session.messages({ sessionID: session.id })
+        const messages = await Session.messages({ sessionID: session.id }).catch(() => [])
         let sessionTokens = 0
         let sessionCost = 0
         const sessionModelUsage: Record<string, { count: number; tokens: number; cost: number }> = {}
@@ -657,13 +657,17 @@ async function getAllSessions(): Promise<Session.Info[]> {
   const sessions: Session.Info[] = []
 
   const projectKeys = await Storage.list(["project"])
-  const projects = await Promise.all(projectKeys.map((key) => Storage.read<Project.Info>(key)))
+  const projects = await Promise.all(
+    projectKeys.map((key) => Storage.read<Project.Info>(key).catch(() => undefined))
+  )
 
   for (const project of projects) {
     if (!project) continue
 
     const sessionKeys = await Storage.list(["session", project.id])
-    const projectSessions = await Promise.all(sessionKeys.map((key) => Storage.read<Session.Info>(key)))
+    const projectSessions = await Promise.all(
+      sessionKeys.map((key) => Storage.read<Session.Info>(key).catch(() => undefined))
+    )
 
     for (const session of projectSessions) {
       if (session) {

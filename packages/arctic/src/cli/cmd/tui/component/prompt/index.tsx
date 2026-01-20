@@ -20,7 +20,7 @@ import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
 import { Editor } from "@tui/util/editor"
 import "opentui-spinner/solid"
-import { createEffect, createMemo, createSignal, Match, onCleanup, onMount, Show, Switch, type JSX } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { useExit } from "../../context/exit"
 import { TuiEvent } from "../../event"
@@ -38,9 +38,9 @@ import { DialogConfirm } from "../../ui/dialog-confirm"
 import { DialogPrompt } from "../../ui/dialog-prompt"
 import { DialogSelect } from "../../ui/dialog-select"
 import { useToast } from "../../ui/toast"
+import { DialogModel } from "../dialog-model"
 import { DialogPrompts } from "../dialog-prompts"
 import { DialogProvider as DialogProviderConnect } from "../dialog-provider"
-import { DialogModel } from "../dialog-model"
 
 async function fetchUsageRecord(input: {
   baseUrl?: string
@@ -270,7 +270,6 @@ export function Prompt(props: PromptProps) {
   createEffect(() => {
     const sessionID = props.sessionID
     if (!sessionID) return
-
     ;(async () => {
       const now = Date.now()
       const startOfDay = new Date(now)
@@ -885,6 +884,7 @@ export function Prompt(props: PromptProps) {
         messageID,
         agent: local.agent.current().name,
         model: selectedModel,
+        thinkingLevel: local.thinking.supportsReasoning() ? local.thinking.current() : undefined,
         parts: [
           {
             id: Identifier.ascending("part"),
@@ -1413,7 +1413,7 @@ export function Prompt(props: PromptProps) {
                 textColor={keybind.leader ? theme.textMuted : theme.text}
                 focusedTextColor={keybind.leader ? theme.textMuted : theme.text}
                 minHeight={1}
-                maxHeight={5}
+                maxHeight={8}
                 onContentChange={() => {
                   const value = input.plainText
                   setStore("prompt", "input", value)
@@ -1608,6 +1608,14 @@ export function Prompt(props: PromptProps) {
               <text flexShrink={0} fg={keybind.leader ? theme.textMuted : theme.text}>
                 {displayModel().model}
               </text>
+              <Show when={local.thinking.supportsReasoning()}>
+                <text
+                  fg={{ low: theme.textMuted, medium: theme.warning, high: theme.primary }[local.thinking.current()]}
+                  onMouseUp={(e) => { e.stopPropagation(); local.thinking.cycle() }}
+                >
+                  ({local.thinking.current()})
+                </text>
+              </Show>
               <text fg={theme.textMuted}>{displayModel().provider}</text>
             </box>
             <Show when={usageLimits() !== undefined}>
@@ -1634,15 +1642,11 @@ export function Prompt(props: PromptProps) {
             </Show>
             <Show when={sessionCost() !== undefined}>
               <text fg={theme.textMuted}>·</text>
-              <text fg={theme.textMuted}>
-                session: ${sessionCost()! < 0.01 ? "0.00" : sessionCost()!.toFixed(2)}
-              </text>
+              <text fg={theme.textMuted}>session: ${sessionCost()! < 0.01 ? "0.00" : sessionCost()!.toFixed(2)}</text>
             </Show>
             <Show when={dailyCost() !== undefined}>
               <text fg={theme.textMuted}>·</text>
-              <text fg={theme.textMuted}>
-                today: ${dailyCost()! < 0.01 ? "0.00" : dailyCost()!.toFixed(2)}
-              </text>
+              <text fg={theme.textMuted}>today: ${dailyCost()! < 0.01 ? "0.00" : dailyCost()!.toFixed(2)}</text>
             </Show>
           </Show>
         </box>

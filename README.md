@@ -108,6 +108,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 > No. Arctic runs entirely on your machine and connects directly to your AI provider. All conversations and data stay local. Arctic only communicates with the AI providers you authenticate with. The install script tracks anonymous installation counts (OS and architecture only) for project statistics, but no personal data or usage information is collected.
 
+**Does Arctic collect telemetry?**
+
+> Arctic temporarily collects anonymous usage telemetry to understand how users interact with the tool. This helps us improve the experience and prioritize features. No personal data, code, or conversations are collected. You can opt out at any time by running `arctic telemetry disable`.
+
 **Can I use Arctic with my own API keys?**
 
 > Yes. Arctic supports direct API key usage for OpenAI, Anthropic, Google, Perplexity, Openrouter, Ollama, and more. Just authenticate with your preferred provider.

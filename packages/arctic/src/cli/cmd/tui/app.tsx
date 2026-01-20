@@ -519,6 +519,15 @@ function App() {
       },
     },
     {
+      title: "Cycle thinking level",
+      value: "thinking.cycle",
+      keybind: "thinking_level_cycle",
+      category: "Agent",
+      onSelect: () => {
+        local.thinking.cycle()
+      },
+    },
+    {
       title: "Connect provider",
       value: "provider.connect",
       suggested: !connected(),
