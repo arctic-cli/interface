@@ -9,7 +9,7 @@ export type DialogPromptProps = {
   description?: () => JSX.Element
   placeholder?: string
   value?: string
-  onConfirm?: (value: string) => void
+  onConfirm?: (value: string) => void | Promise<void>
   onCancel?: () => void
 }
 
@@ -18,9 +18,9 @@ export function DialogPrompt(props: DialogPromptProps) {
   const { theme } = useTheme()
   let textarea: TextareaRenderable
 
-  useKeyboard((evt) => {
+  useKeyboard(async (evt) => {
     if (evt.name === "return") {
-      props.onConfirm?.(textarea.plainText)
+      await props.onConfirm?.(textarea.plainText)
     }
   })
 
@@ -43,8 +43,8 @@ export function DialogPrompt(props: DialogPromptProps) {
       <box gap={1}>
         {props.description}
         <textarea
-          onSubmit={() => {
-            props.onConfirm?.(textarea.plainText)
+          onSubmit={async () => {
+            await props.onConfirm?.(textarea.plainText)
           }}
           height={3}
           keyBindings={[{ name: "return", action: "submit" }]}

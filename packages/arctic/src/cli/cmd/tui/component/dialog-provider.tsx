@@ -43,12 +43,12 @@ function getConnectionLabel(info: Auth.Info): string {
 async function checkExistingConnection(
   providerID: string,
   dialog: ReturnType<typeof useDialog>,
-  onContinue: (connectionName?: string) => void,
+  onContinue: (connectionName?: string) => void | Promise<void>,
 ): Promise<void> {
   const connections = await Auth.listConnections(providerID)
 
   if (connections.length === 0) {
-    onContinue()
+    await onContinue()
     return
   }
 
@@ -62,7 +62,7 @@ async function checkExistingConnection(
 interface ExistingConnectionDialogProps {
   providerID: string
   existingLabel: string
-  onContinue: (connectionName?: string) => void
+  onContinue: (connectionName?: string) => void | Promise<void>
 }
 
 function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
@@ -72,16 +72,16 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
     {
       title: "Add another connection",
       value: "add",
-      onSelect: () => {
+      onSelect: async () => {
         dialog.replace(() => (
-          <ConnectionNamePrompt providerID={props.providerID} onConfirm={(name) => props.onContinue(name)} />
+          <ConnectionNamePrompt providerID={props.providerID} onConfirm={async (name) => await props.onContinue(name)} />
         ))
       },
     },
     {
       title: "Overwrite existing",
       value: "overwrite",
-      onSelect: () => {
+      onSelect: async () => {
         dialog.replace(() => (
           <DialogSelect
             title="Overwrite existing connection?"
@@ -89,7 +89,7 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
               {
                 title: "Yes, overwrite",
                 value: "yes",
-                onSelect: () => props.onContinue(),
+                onSelect: async () => await props.onContinue(),
               },
               {
                 title: "No, cancel",
@@ -113,7 +113,7 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
 
 interface ConnectionNamePromptProps {
   providerID: string
-  onConfirm: (name: string) => void
+  onConfirm: (name: string) => void | Promise<void>
 }
 
 function ConnectionNamePrompt(props: ConnectionNamePromptProps) {
@@ -129,7 +129,7 @@ function ConnectionNamePrompt(props: ConnectionNamePromptProps) {
           <text fg={theme.error}>{error()}</text>
         </Show>
       )}
-      onConfirm={(value) => {
+      onConfirm={async (value) => {
         if (!value) {
           setError("Connection name is required")
           return
@@ -139,7 +139,7 @@ function ConnectionNamePrompt(props: ConnectionNamePromptProps) {
           setError(validation)
           return
         }
-        props.onConfirm(value)
+        await props.onConfirm(value)
       }}
     />
   )

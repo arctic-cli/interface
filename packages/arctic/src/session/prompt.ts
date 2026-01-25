@@ -44,6 +44,7 @@ import { MCP } from "../mcp"
 import BUILD_SWITCH from "../session/prompt/build-switch.txt"
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import PROMPT_PLAN from "../session/prompt/plan.txt"
+import { Telemetry } from "../telemetry"
 import { ListTool } from "../tool/ls"
 import { ReadTool } from "../tool/read"
 import { ToolRegistry } from "../tool/registry"
@@ -54,7 +55,6 @@ import { SessionProcessor } from "./processor"
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import { SessionUsage } from "./usage"
-import { Telemetry } from "../telemetry"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -62,6 +62,7 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 export namespace SessionPrompt {
   const log = Log.create({ service: "session.prompt" })
   export const OUTPUT_TOKEN_MAX = 32_000
+  export const MAX_RATE_LIMIT_RETRIES = 20
 
   const state = Instance.state(
     () => {
@@ -230,7 +231,6 @@ export namespace SessionPrompt {
 
     return loop(input.sessionID)
   }
-
 
   async function benchmarkFanout(parent: Session.Info, input: PromptInput) {
     if (!SessionBenchmark.isParent(parent)) {

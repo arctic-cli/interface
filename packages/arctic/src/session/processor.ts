@@ -15,6 +15,7 @@ import type { Provider } from "@/provider/provider"
 
 export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
+  const MAX_RETRIES = 20
   const log = Log.create({ service: "session.processor" })
 
   export type Info = Awaited<ReturnType<typeof create>>
@@ -363,8 +364,16 @@ export namespace SessionProcessor {
               stack: JSON.stringify(e.stack),
             })
             const error = MessageV2.fromError(e, { providerID: input.model.providerID })
+            // Handle abort errors immediately - set status to idle and stop
+            if (MessageV2.AbortedError.isInstance(error)) {
+              input.assistantMessage.error = error
+              input.assistantMessage.time.completed = Date.now()
+              await Session.updateMessage(input.assistantMessage)
+              SessionStatus.set(input.sessionID, { type: "idle" })
+              return "stop"
+            }
             const retry = SessionRetry.retryable(error)
-            if (retry !== undefined && attempt < (streamInput.maxRetries ?? 0)) {
+            if (retry !== undefined && attempt < MAX_RETRIES) {
               attempt++
               const delay = SessionRetry.delay(attempt, error.name === "APIError" ? error : undefined)
               SessionStatus.set(input.sessionID, {

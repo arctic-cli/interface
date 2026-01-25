@@ -1,22 +1,22 @@
-import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
+import { BusEvent } from "@/bus/bus-event"
+import { ProviderTransform } from "@/provider/transform"
+import { fn } from "@/util/fn"
 import { wrapLanguageModel, type ModelMessage } from "ai"
+import { mergeDeep, pipe } from "remeda"
+import z from "zod"
 import { Session } from "."
+import { Config } from "../config/config"
+import { Flag } from "../flag/flag"
 import { Identifier } from "../id/id"
 import { Instance } from "../project/instance"
 import { Provider } from "../provider/provider"
-import { MessageV2 } from "./message-v2"
-import { SystemPrompt } from "./system"
-import z from "zod"
-import { SessionPrompt } from "./prompt"
-import { Flag } from "../flag/flag"
-import { Token } from "../util/token"
-import { Config } from "../config/config"
 import { Log } from "../util/log"
-import { ProviderTransform } from "@/provider/transform"
+import { Token } from "../util/token"
+import { MessageV2 } from "./message-v2"
 import { SessionProcessor } from "./processor"
-import { fn } from "@/util/fn"
-import { mergeDeep, pipe } from "remeda"
+import { SessionPrompt } from "./prompt"
+import { SystemPrompt } from "./system"
 
 export namespace SessionCompaction {
   const log = Log.create({ service: "session.compaction" })
@@ -138,8 +138,7 @@ export namespace SessionCompaction {
           error,
         })
       },
-      // set to 0, we handle loop
-      maxRetries: 0,
+      maxRetries: 3,
       providerOptions: ProviderTransform.providerOptions(
         model,
         pipe({}, mergeDeep(ProviderTransform.options(model, input.sessionID)), mergeDeep(model.options)),

@@ -91,7 +91,6 @@
     "web-tree-sitter"
   ],
   "overrides": {
-    "@types/bun": "catalog:",
-    "@types/node": "catalog:"
+    "@types/bun": "catalog:"
   }
 }
