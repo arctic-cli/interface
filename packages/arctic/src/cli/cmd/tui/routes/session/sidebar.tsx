@@ -325,7 +325,7 @@ export function Sidebar(props: { sessionID: string; onHide?: () => void }) {
     <Show when={session()}>
       <box
         border={["left"]}
-        borderColor={theme.border}
+        borderColor={theme.borderSubtle}
         customBorderChars={SplitBorder.customBorderChars}
         width={42}
         minWidth={42}

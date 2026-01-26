@@ -245,6 +245,37 @@ export function DialogUsage() {
     return Math.min(20, Math.floor(dimensions().height * 0.7))
   })
 
+  const duplicateAccountInfo = createMemo(() => {
+    const records = usageState.records
+    const accountToProviders: Record<string, string[]> = {}
+
+    for (const [providerID, record] of Object.entries(records)) {
+      if (!record.accountId) continue
+      const provider = providerById()[providerID]
+      const baseName = provider?.baseProvider ?? providerID
+      if (!baseName.includes("github-copilot")) continue
+
+      if (!accountToProviders[record.accountId]) {
+        accountToProviders[record.accountId] = []
+      }
+      accountToProviders[record.accountId].push(providerID)
+    }
+
+    const duplicates: Record<string, { accountId: string; accountUsername?: string; providers: string[] }> = {}
+    for (const [accountId, providers] of Object.entries(accountToProviders)) {
+      if (providers.length > 1) {
+        const username = providers
+          .map((p) => records[p]?.accountUsername)
+          .find((u) => u)
+        for (const providerID of providers) {
+          duplicates[providerID] = { accountId, accountUsername: username, providers }
+        }
+      }
+    }
+
+    return duplicates
+  })
+
   const loadProviderUsage = (providerID: string) => {
     if (!providerID || !sdk.url) return Promise.resolve()
     if (usageState.records[providerID]) return Promise.resolve()
@@ -393,7 +424,7 @@ export function DialogUsage() {
                 visible: false,
               }}
             >
-              <For each={visibleRecords()}>{(record) => <UsageCard record={record} />}</For>
+              <For each={visibleRecords()}>{(record) => <UsageCard record={record} duplicateInfo={duplicateAccountInfo()[record.providerID]} />}</For>
             </scrollbox>
           )}
         </box>
@@ -402,7 +433,7 @@ export function DialogUsage() {
   )
 }
 
-function UsageCard(props: { record: ProviderUsage.Record }) {
+function UsageCard(props: { record: ProviderUsage.Record; duplicateInfo?: { accountId: string; accountUsername?: string; providers: string[] } }) {
   const { theme } = useTheme()
   const status = createMemo(() => describeStatus(props.record))
   const limits = createMemo(() => describeLimits(props.record.limits, props.record.providerID))
@@ -431,6 +462,13 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
       <text fg={theme.text}>
         Access: <span style={{ fg: status().color }}>{status().label}</span>
       </text>
+      <Show when={props.record.accountUsername}>
+        {(username) => (
+          <text fg={theme.text}>
+            GitHub: <span style={{ fg: "#60a5fa" }}>@{username()}</span>
+          </text>
+        )}
+      </Show>
       <Show when={props.record.credits}>
         {(credits) => (
           <text fg={theme.text}>
@@ -521,6 +559,18 @@ function UsageCard(props: { record: ProviderUsage.Record }) {
             </For>
           </box>
         </box>
+      </Show>
+      <Show when={props.duplicateInfo}>
+        {(info) => {
+          const otherProviders = info().providers.filter((p) => p !== props.record.providerID)
+          const username = info().accountUsername
+          return (
+            <text fg="#f5a524">
+              ⚠ Same GitHub account{username ? ` (@${username})` : ""} as:{" "}
+              {otherProviders.join(", ")}
+            </text>
+          )
+        }}
       </Show>
       <Show when={props.record.error}>{(msg) => <text fg={theme.error}>⚠ {msg()}</text>}</Show>
     </box>

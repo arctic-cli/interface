@@ -9,7 +9,7 @@ import fs from "fs/promises"
 import path from "path"
 import { fetchCodexUsagePayload } from "@/provider/codex-backend"
 import type { CodexCreditsDetails, CodexRateLimitWindowSnapshot } from "@/provider/codex-backend"
-import { fetchGithubCopilotUsage, type QuotaSnapshot } from "@/provider/github-copilot-backend"
+import { fetchGithubCopilotUsage, fetchGithubUser, type QuotaSnapshot } from "@/provider/github-copilot-backend"
 import { fetchAntigravityModels, type AntigravityModelQuota } from "@/provider/antigravity-backend"
 import { Provider } from "./provider"
 import { Pricing } from "./pricing"
@@ -70,6 +70,8 @@ export namespace ProviderUsage {
     costSummary: CostSummary.optional(),
     fetchedAt: z.number(),
     error: z.string().optional(),
+    accountId: z.string().optional(),
+    accountUsername: z.string().optional(),
   })
   export type Record = z.infer<typeof Record>
 
@@ -845,14 +847,7 @@ export namespace ProviderUsage {
   async function fetchGithubCopilotUsageWrapper(input: {
     provider: Provider.Info
   }): Promise<Omit<Record, "providerID" | "providerName" | "fetchedAt">> {
-    // Try to get auth from the specific provider ID first, then fall back to defaults
-    let auth = await Auth.get(input.provider.id)
-    if (!auth && input.provider.id !== "github-copilot") {
-      auth = await Auth.get("github-copilot")
-    }
-    if (!auth) {
-      auth = await Auth.get("github-copilot-enterprise")
-    }
+    const auth = await Auth.get(input.provider.id)
 
     if (!auth) {
       throw new Error("GitHub authentication is required. Run `arctic auth login` and select GitHub Copilot.")
@@ -874,9 +869,10 @@ export namespace ProviderUsage {
       throw new Error("GitHub Copilot requires OAuth, API key, or GitHub token authentication.")
     }
 
-    const payload = await fetchGithubCopilotUsage({
-      token,
-    })
+    const [payload, userInfo] = await Promise.all([
+      fetchGithubCopilotUsage({ token }),
+      fetchGithubUser({ token }).catch(() => null),
+    ])
 
     // Check if quota_snapshots exists
     if (!payload.quota_snapshots || typeof payload.quota_snapshots !== "object") {
@@ -887,6 +883,8 @@ export namespace ProviderUsage {
           hasCredits: payload.chat_enabled || false,
           unlimited: true,
         },
+        accountId: userInfo ? String(userInfo.id) : undefined,
+        accountUsername: userInfo?.login,
       }
     }
 
@@ -946,6 +944,8 @@ export namespace ProviderUsage {
         hasCredits: true,
         unlimited: allUnlimited,
       },
+      accountId: userInfo ? String(userInfo.id) : undefined,
+      accountUsername: userInfo?.login,
     }
   }
 

@@ -6,6 +6,7 @@ import { mapValues, mergeDeep, sortBy } from "remeda"
 import z from "zod"
 import { Auth } from "../auth"
 import { CodexClient } from "../auth/codex"
+import { ensureAnthropicTokenValid } from "../auth/anthropic-oauth"
 import { BunProc } from "../bun"
 import { Config } from "../config/config"
 import { Env } from "../env"
@@ -1989,6 +1990,13 @@ export namespace Provider {
     const s = await state()
     const key = `${model.providerID}/${model.id}`
     if (s.models.has(key)) return s.models.get(key)!
+
+
+    if (model.providerID === "anthropic") {
+      await ensureAnthropicTokenValid().catch(() => {
+        // ignore errors, let plugin handle it
+      })
+    }
 
     const provider = s.providers[model.providerID]
     const sdk = await getSDK(model)

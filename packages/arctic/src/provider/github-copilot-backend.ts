@@ -2,6 +2,37 @@ export const GITHUB_API_BASE_URL = "https://api.github.com"
 
 const USER_AGENT = "arctic-cli"
 
+export type GitHubUser = {
+  id: number
+  login: string
+  name?: string
+  email?: string
+}
+
+export async function fetchGithubUser(options: { token: string }): Promise<GitHubUser> {
+  const url = `${GITHUB_API_BASE_URL}/user`
+  const headers = new Headers({
+    Authorization: `Bearer ${options.token}`,
+    Accept: "application/json",
+    "User-Agent": USER_AGENT,
+  })
+
+  const response = await fetch(url, { method: "GET", headers })
+  const bodyText = await response.text()
+
+  if (!response.ok) {
+    const status = typeof response.status === "number" ? response.status : "unknown"
+    throw new Error(`GitHub user request failed (${status}): ${bodyText || "Unexpected response"}`)
+  }
+
+  if (!bodyText) {
+    throw new Error("GitHub user response was empty.")
+  }
+
+  const payload = JSON.parse(bodyText) as GitHubUser
+  return payload
+}
+
 export type QuotaSnapshot = {
   entitlement: number
   overage_count: number
