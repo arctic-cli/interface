@@ -1389,87 +1389,79 @@ export namespace ProviderUsage {
     }
 
     const payload = (await response.json()) as any
+    
+    const weeklyUsage = payload.usage
+    const windowedLimits = Array.isArray(payload.limits) ? payload.limits : []
+    
+    const fiveHourLimit = windowedLimits.find((l: any) => {
+      const window = l?.window || {}
+      const duration = parseInt(window.duration)
+      const timeUnit = window.timeUnit || ""
+      return timeUnit.includes("MINUTE") && duration === 300
+    })
 
-    const usage = payload.usage
-    const limits = Array.isArray(payload.limits) ? payload.limits : []
+    const primary = resolveKimiLimitFromDetail(fiveHourLimit?.detail, "5h")
+    const secondary = resolveKimiLimitFromDetail(weeklyUsage, "Weekly")
 
-    const summaryDetails = usage ? formatKimiRow(usage, "Total quota") : undefined
-    const limitDetails = limits.map((l: any, idx: number) => formatKimiRow(l, getKimiLabel(l, idx))).filter(Boolean)
+    const rows = [
+      formatKimiLimitRow("5-hour", fiveHourLimit?.detail),
+      formatKimiLimitRow("Weekly", weeklyUsage),
+    ].filter((row): row is string => Boolean(row))
 
-    const allDetails = [summaryDetails, ...limitDetails].filter(Boolean).join("\n")
+    const planType = rows.length > 0 ? `Kimi for Coding\n${rows.map((row) => `- ${row}`).join("\n")}` : "Kimi for Coding"
 
-    let primaryLimit: any = undefined
-    if (usage && usage.limit > 0) {
-      primaryLimit = usage
-    } else if (limits.length > 0) {
-      primaryLimit = limits.find((l: any) => {
-        const detail = l.detail || l
-        return detail.limit && parseInt(detail.limit) > 0
-      })
-    }
-
-    let primary: RateLimitWindowSummary | undefined
-    if (primaryLimit) {
-      const detail = primaryLimit.detail || primaryLimit
-      const limit = parseInt(detail.limit) || 0
-      const usedRaw = parseInt(detail.used)
-      const remainingRaw = parseInt(detail.remaining)
-      const used = !isNaN(usedRaw) ? usedRaw : limit - (!isNaN(remainingRaw) ? remainingRaw : 0)
-
-      if (limit > 0) {
-        primary = {
-          usedPercent: (used / limit) * 100,
-          resetsAt: resolveKimiReset(detail),
-        }
-      }
-    }
+    const limitReached = [primary?.usedPercent, secondary?.usedPercent].some(
+      (value) => typeof value === "number" && value >= 100,
+    )
 
     return {
-      planType: allDetails || "Kimi for Coding",
-      limits: primary ? { primary } : undefined,
+      planType,
+      allowed: !limitReached,
+      limitReached,
+      limits: {
+        primary: primary ?? undefined,
+        secondary: secondary ?? undefined,
+      },
       credits: {
         hasCredits: true,
-        unlimited: !primary,
+        unlimited: !primary && !secondary,
       },
     }
   }
 
-  function formatKimiRow(item: any, label: string): string {
-    const detail = item.detail || item
+  function resolveKimiLimitFromDetail(detail: any, label?: string): RateLimitWindowSummary | undefined {
+    if (!detail) return undefined
     const limit = parseInt(detail.limit)
-    const usedRaw = parseInt(detail.used)
-    const remainingRaw = parseInt(detail.remaining)
-    const used = !isNaN(usedRaw) ? usedRaw : limit - (!isNaN(remainingRaw) ? remainingRaw : 0)
-
-    if (isNaN(limit) || limit <= 0) return `${label}: ${used?.toLocaleString() ?? "N/A"} used`
-
-    const resetStr = resolveKimiResetString(detail)
-    return `${label}: ${used.toLocaleString()} / ${limit.toLocaleString()}${resetStr ? ` (${resetStr})` : ""}`
+    const remaining = parseInt(detail.remaining)
+    if (isNaN(limit) || limit <= 0) return undefined
+    
+    const used = limit - (isNaN(remaining) ? 0 : remaining)
+    const usedPercent = (used / limit) * 100
+    const resetsAt = resolveKimiReset(detail)
+    
+    return {
+      usedPercent,
+      resetsAt,
+      label,
+    }
   }
 
-  function getKimiLabel(item: any, idx: number): string {
-    const detail = item.detail || item
-    const val = item.name || item.title || item.scope || detail.name || detail.title || detail.scope
-    if (val) return String(val)
-
-    const window = item.window || detail.window || {}
-    const duration = parseInt(window.duration || item.duration || detail.duration)
-    const timeUnit = window.timeUnit || item.timeUnit || detail.timeUnit || ""
-
-    if (duration) {
-      if (timeUnit.includes("MINUTE")) {
-        if (duration >= 60 && duration % 60 === 0) return `${duration / 60}h limit`
-        return `${duration}m limit`
-      }
-      if (timeUnit.includes("HOUR")) return `${duration}h limit`
-      if (timeUnit.includes("DAY")) return `${duration}d limit`
-      return `${duration}s limit`
-    }
-    return `Limit #${idx + 1}`
+  function formatKimiLimitRow(label: string, detail: any): string | undefined {
+    if (!detail) return undefined
+    const limit = parseInt(detail.limit)
+    const remaining = parseInt(detail.remaining)
+    if (isNaN(limit) || limit <= 0) return undefined
+    
+    const used = limit - (isNaN(remaining) ? 0 : remaining)
+    const usedPercent = (used / limit) * 100
+    const resetsAt = resolveKimiReset(detail)
+    const resetLabel = resetsAt ? formatKimiTimeRemaining(resetsAt) : undefined
+    
+    return `${label}: ${usedPercent.toFixed(0)}% used${resetLabel ? ` (${resetLabel})` : ""}`
   }
 
   function resolveKimiReset(data: any): number | undefined {
-    for (const key of ["reset_at", "resetAt", "reset_time", "resetTime"]) {
+    for (const key of ["reset_at", "resetAt", "reset_time", "resetTime", "resets_at"]) {
       if (data[key]) {
         const d = new Date(data[key])
         if (!isNaN(d.getTime())) return Math.floor(d.getTime() / 1000)
@@ -1482,11 +1474,11 @@ export namespace ProviderUsage {
     return undefined
   }
 
-  function resolveKimiResetString(data: any): string | undefined {
-    const ts = resolveKimiReset(data)
-    if (!ts) return undefined
+  function formatKimiTimeRemaining(resetsAt: number): string {
+    const now = Date.now()
+    const resetTime = resetsAt * 1000
+    const diff = resetTime - now
 
-    const diff = ts * 1000 - Date.now()
     if (diff <= 0) return "resetting soon"
 
     const totalMinutes = Math.floor(diff / 60000)

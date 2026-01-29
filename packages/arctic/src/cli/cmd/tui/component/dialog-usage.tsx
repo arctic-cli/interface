@@ -264,9 +264,7 @@ export function DialogUsage() {
     const duplicates: Record<string, { accountId: string; accountUsername?: string; providers: string[] }> = {}
     for (const [accountId, providers] of Object.entries(accountToProviders)) {
       if (providers.length > 1) {
-        const username = providers
-          .map((p) => records[p]?.accountUsername)
-          .find((u) => u)
+        const username = providers.map((p) => records[p]?.accountUsername).find((u) => u)
         for (const providerID of providers) {
           duplicates[providerID] = { accountId, accountUsername: username, providers }
         }
@@ -424,7 +422,9 @@ export function DialogUsage() {
                 visible: false,
               }}
             >
-              <For each={visibleRecords()}>{(record) => <UsageCard record={record} duplicateInfo={duplicateAccountInfo()[record.providerID]} />}</For>
+              <For each={visibleRecords()}>
+                {(record) => <UsageCard record={record} duplicateInfo={duplicateAccountInfo()[record.providerID]} />}
+              </For>
             </scrollbox>
           )}
         </box>
@@ -433,7 +433,10 @@ export function DialogUsage() {
   )
 }
 
-function UsageCard(props: { record: ProviderUsage.Record; duplicateInfo?: { accountId: string; accountUsername?: string; providers: string[] } }) {
+function UsageCard(props: {
+  record: ProviderUsage.Record
+  duplicateInfo?: { accountId: string; accountUsername?: string; providers: string[] }
+}) {
   const { theme } = useTheme()
   const status = createMemo(() => describeStatus(props.record))
   const limits = createMemo(() => describeLimits(props.record.limits, props.record.providerID))
@@ -566,8 +569,7 @@ function UsageCard(props: { record: ProviderUsage.Record; duplicateInfo?: { acco
           const username = info().accountUsername
           return (
             <text fg="#f5a524">
-              ⚠ Same GitHub account{username ? ` (@${username})` : ""} as:{" "}
-              {otherProviders.join(", ")}
+              ⚠ Same GitHub account{username ? ` (@${username})` : ""} as: {otherProviders.join(", ")}
             </text>
           )
         }}
@@ -606,11 +608,12 @@ function describeLimits(
   providerID?: string,
 ): { label: string; detail: string; reset?: string; color: string }[] {
   if (!limits) return []
-  const isMinimax = providerID === "minimax" || providerID === "minimax-coding-plan"
+  const showRemainingDirectly = providerID === "minimax" || providerID === "minimax-coding-plan"
+  const options = showRemainingDirectly ? { showRemainingDirectly: true } : undefined
   const rows: { label: string; detail: string; reset?: string; color: string }[] = []
-  const primary = describeLimit(limits.primary?.label ?? "Primary", limits.primary, isMinimax)
+  const primary = describeLimit(limits.primary?.label ?? "Primary", limits.primary, options)
   if (primary) rows.push(primary)
-  const secondary = describeLimit(limits.secondary?.label ?? "Secondary", limits.secondary, isMinimax)
+  const secondary = describeLimit(limits.secondary?.label ?? "Secondary", limits.secondary, options)
   if (secondary) rows.push(secondary)
   return rows
 }
@@ -618,11 +621,11 @@ function describeLimits(
 function describeLimit(
   label: string,
   window?: ProviderUsage.RateLimitWindowSummary,
-  isMinimax = false,
+  options?: { showRemainingDirectly?: boolean },
 ): { label: string; detail: string; reset?: string; color: string } | undefined {
   if (!window) return undefined
   const usedPercent = window.usedPercent ?? 0
-  const remaining = isMinimax ? usedPercent : Math.max(0, 100 - usedPercent)
+  const remaining = options?.showRemainingDirectly ? usedPercent : Math.max(0, 100 - usedPercent)
 
   const color = remaining >= 70 ? "#34d399" : remaining >= 40 ? "#fbbf24" : "#f87171"
 
