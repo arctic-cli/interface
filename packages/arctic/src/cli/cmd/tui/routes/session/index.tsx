@@ -186,7 +186,7 @@ export function Session() {
   const [userMessageMarkdown, setUserMessageMarkdown] = createSignal(kv.get("user_message_markdown", true))
   const [diffWrapMode, setDiffWrapMode] = createSignal<"word" | "none">("word")
 
-  const contentWidth = createMemo(() => Math.max(0, dimensions().width - 4))
+  const contentWidth = createMemo(() => Math.max(0, dimensions().width - 4 - (showSidebar() ? 42 : 0)))
 
   const scrollAcceleration = createMemo(() => {
     const tui = sync.data.config.tui
@@ -1157,7 +1157,7 @@ export function Session() {
   createEffect(on(() => route.sessionID, toBottom))
   createEffect(
     on(showSidebar, (value, prev) => {
-      if (prev === undefined || value) return
+      if (prev === undefined) return
       renderer.currentRenderBuffer.clear()
       renderer.requestRender()
     }),

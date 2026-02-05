@@ -1,17 +1,17 @@
-import { MessageV2 } from "./message-v2"
-import { streamText } from "ai"
-import { Log } from "@/util/log"
-import { Identifier } from "@/id/id"
-import { Session } from "."
 import { Agent } from "@/agent/agent"
-import { Permission } from "@/permission"
-import { Snapshot } from "@/snapshot"
-import { SessionSummary } from "./summary"
 import { Bus } from "@/bus"
-import { SessionRetry } from "./retry"
-import { SessionStatus } from "./status"
+import { Identifier } from "@/id/id"
+import { Permission } from "@/permission"
 import { Plugin } from "@/plugin"
 import type { Provider } from "@/provider/provider"
+import { Snapshot } from "@/snapshot"
+import { Log } from "@/util/log"
+import { streamText } from "ai"
+import { Session } from "."
+import { MessageV2 } from "./message-v2"
+import { SessionRetry } from "./retry"
+import { SessionStatus } from "./status"
+import { SessionSummary } from "./summary"
 
 export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
@@ -51,10 +51,10 @@ export namespace SessionProcessor {
       },
       async process(streamInput: StreamInput) {
         log.info("process")
+        let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
         while (true) {
           try {
             let currentText: MessageV2.TextPart | undefined
-            let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
             const stream = streamText(streamInput)
 
             // batching for text deltas to reduce ui update frequency
@@ -320,6 +320,11 @@ export namespace SessionProcessor {
                     cost: usage.cost,
                   })
                   await Session.updateMessage(input.assistantMessage)
+                  // TokenHistory.record({
+                  //   providerID: input.model.providerID,
+                  //   input: usage.tokens.input + usage.tokens.cache.read + usage.tokens.cache.write,
+                  //   output: usage.tokens.output + usage.tokens.reasoning,
+                  // }).catch(() => {})
                   if (snapshot) {
                     const patch = await Snapshot.patch(snapshot)
                     if (patch.files.length) {
@@ -410,6 +415,11 @@ export namespace SessionProcessor {
             const error = MessageV2.fromError(e, { providerID: input.model.providerID })
             // Handle abort errors immediately - set status to idle and stop
             if (MessageV2.AbortedError.isInstance(error)) {
+              for (const part of Object.values(reasoningMap)) {
+                part.time = { ...part.time, end: Date.now() }
+                await Session.updatePart(part)
+              }
+              reasoningMap = {}
               input.assistantMessage.error = error
               input.assistantMessage.time.completed = Date.now()
               await Session.updateMessage(input.assistantMessage)
@@ -454,6 +464,11 @@ export namespace SessionProcessor {
               })
             }
           }
+          for (const part of Object.values(reasoningMap)) {
+            part.time = { ...part.time, end: Date.now() }
+            await Session.updatePart(part)
+          }
+          reasoningMap = {}
           input.assistantMessage.time.completed = Date.now()
           await Session.updateMessage(input.assistantMessage)
           SessionStatus.set(input.sessionID, { type: "idle" })
