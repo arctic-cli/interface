@@ -448,12 +448,12 @@ export function Autocomplete(props: {
       {
         display: "/connect",
         aliases: ["/auth", "/login"],
-        description: "connect to a provider",
+        description: "connect to a provider (supports multiple accounts)",
         onSelect: () => command.trigger("provider.connect"),
       },
       {
         display: "/connections",
-        description: "manage connections",
+        description: "manage connections (view all accounts)",
         onSelect: () => command.trigger("provider.connections"),
       },
       {

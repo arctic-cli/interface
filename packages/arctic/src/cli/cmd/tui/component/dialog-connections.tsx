@@ -66,12 +66,22 @@ export function DialogConnections() {
       return a.displayName.localeCompare(b.displayName)
     })
 
-    return sorted.map((conn) => ({
-      value: conn,
-      title: conn.displayName,
-      description: conn.authLabel,
-      category: conn.baseProvider,
-    }))
+    return sorted.map((conn) => {
+      const multipleAccounts = sorted.filter(c => c.baseProvider === conn.baseProvider).length > 1
+      const displayTitle = conn.connectionName 
+        ? `${conn.baseProvider} (${conn.connectionName})`
+        : conn.displayName
+      const displayDescription = multipleAccounts && !conn.connectionName
+        ? `${conn.authLabel} · default account`
+        : conn.authLabel
+
+      return {
+        value: conn,
+        title: displayTitle,
+        description: displayDescription,
+        category: conn.baseProvider,
+      }
+    })
   })
 
   const removeConnection = async (conn: ConnectionOption) => {

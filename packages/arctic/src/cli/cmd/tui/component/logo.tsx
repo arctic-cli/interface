@@ -52,7 +52,7 @@ export function Logo(props?: { onConnectProvider?: () => void; onViewUsage?: () 
         </For>
         <box flexDirection="column" paddingTop={1} gap={0}>
           <text fg={theme.textMuted}>
-            Welcome to Arctic! Get started by connecting a provider, checking usage stats, or managing multiple accounts.
+            Welcome to Arctic! Connect providers, check usage stats, or manage multiple accounts per provider.
           </text>
           <box flexDirection="column" gap={1} paddingTop={1}>
             <box flexDirection="row" gap={1}>

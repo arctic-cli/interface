@@ -70,7 +70,8 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
 
   const options = createMemo(() => [
     {
-      title: "Add another connection",
+      title: "Add another account",
+      description: "Connect a second account for this provider",
       value: "add",
       onSelect: async () => {
         dialog.replace(() => (
@@ -80,6 +81,7 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
     },
     {
       title: "Overwrite existing",
+      description: "Replace the current connection",
       value: "overwrite",
       onSelect: async () => {
         dialog.replace(() => (
@@ -108,7 +110,7 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
     },
   ])
 
-  return <DialogSelect title={`You already have a connection for ${props.providerID}`} options={options()} />
+  return <DialogSelect title={`Already connected to ${props.providerID} (${props.existingLabel})`} options={options()} />
 }
 
 interface ConnectionNamePromptProps {
@@ -122,10 +124,14 @@ function ConnectionNamePrompt(props: ConnectionNamePromptProps) {
 
   return (
     <DialogPrompt
-      title="Name for this connection"
-      placeholder="mycompany"
+      title="Name this connection"
+      placeholder="work, personal, mycompany..."
       description={() => (
-        <Show when={error()}>
+        <Show when={error()} fallback={
+          <text fg={theme.textMuted}>
+            Give this account a unique name to identify it later
+          </text>
+        }>
           <text fg={theme.error}>{error()}</text>
         </Show>
       )}
@@ -159,10 +165,10 @@ export function createDialogProviderOptions() {
         title: provider.name,
         value: provider.id,
         description: {
-          anthropic: "(Claude Max or API key)",
-          antigravity: "(Gemini 3/Sonnet/Opus 4.5)",
-          codex: "(GPT-5 via ChatGPT Plus/Pro)",
-          ollama: "(local models)",
+          anthropic: "Claude Max or API key",
+          antigravity: "Gemini 3/Sonnet/Opus 4.5",
+          codex: "GPT-5 via ChatGPT Plus/Pro",
+          ollama: "local models",
         }[provider.id],
         category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
         async onSelect() {
@@ -249,7 +255,17 @@ export function createDialogProviderOptions() {
 
 export function DialogProvider() {
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  const { theme } = useTheme()
+  return (
+    <box flexDirection="column" gap={0}>
+      <box paddingLeft={4} paddingRight={4} paddingBottom={1}>
+        <text fg={theme.textMuted}>
+          All providers support multiple accounts. Add as many as you need.
+        </text>
+      </box>
+      <DialogSelect title="Connect a provider" options={options()} />
+    </box>
+  )
 }
 
 interface AutoMethodProps {
