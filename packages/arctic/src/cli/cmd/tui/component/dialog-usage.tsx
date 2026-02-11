@@ -106,6 +106,18 @@ export function DialogUsage() {
     })
   })
 
+  const navigateProvider = (direction: "prev" | "next") => {
+    const providers = filteredProviderTabs()
+    if (providers.length === 0) return
+    const current = selectedProvider()
+    const currentIndex = current ? providers.indexOf(current) : -1
+    const nextIndex =
+      direction === "prev"
+        ? (currentIndex - 1 + providers.length) % providers.length
+        : (currentIndex + 1) % providers.length
+    setSelectedProvider(providers[nextIndex])
+  }
+
   useKeyboard((evt) => {
     if (evt.name === "escape") {
       if (searchQuery().length > 0) {
@@ -119,17 +131,17 @@ export function DialogUsage() {
       return
     }
 
-    // Scroll navigation for content
     if (evt.name === "up" || (evt.ctrl && evt.name === "p")) {
       evt.preventDefault()
-      scroll?.scrollBy(-1)
+      navigateProvider("prev")
       return
     }
     if (evt.name === "down" || (evt.ctrl && evt.name === "n")) {
       evt.preventDefault()
-      scroll?.scrollBy(1)
+      navigateProvider("next")
       return
     }
+
     if (evt.name === "pageup") {
       evt.preventDefault()
       scroll?.scrollBy(-10)
@@ -144,15 +156,7 @@ export function DialogUsage() {
     // Tab/Shift+Tab for provider navigation
     if (evt.name === "tab" && !evt.ctrl && !evt.meta) {
       evt.preventDefault()
-      const providers = filteredProviderTabs()
-      if (providers.length > 0) {
-        const current = selectedProvider()
-        const currentIndex = current ? providers.indexOf(current) : -1
-        const nextIndex = evt.shift
-          ? (currentIndex - 1 + providers.length) % providers.length
-          : (currentIndex + 1) % providers.length
-        setSelectedProvider(providers[nextIndex])
-      }
+      navigateProvider(evt.shift ? "prev" : "next")
       return
     }
   })
@@ -336,7 +340,7 @@ export function DialogUsage() {
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
           Usage
         </text>
-        <text fg={theme.textMuted}>esc · tab/shift+tab · click to switch</text>
+        <text fg={theme.textMuted}>esc · ↑/↓ · tab/shift+tab · click to switch</text>
       </box>
 
       <box paddingBottom={1} flexDirection="row" alignItems="flex-start" gap={1}>
@@ -356,9 +360,23 @@ export function DialogUsage() {
       <box flexDirection="row" gap={2}>
         <Show when={filteredProviderTabs().length > 0}>
           <box flexDirection="column" width={SIDEBAR_WIDTH} flexShrink={0}>
-            <text fg={theme.textMuted} paddingBottom={1}>
-              Providers
-            </text>
+            <box flexDirection="row" justifyContent="space-between" alignItems="center" paddingBottom={1}>
+              <text fg={theme.textMuted}>Providers</text>
+              <box flexDirection="row" gap={1}>
+                <text
+                  fg={theme.textMuted}
+                  onMouseUp={() => navigateProvider("prev")}
+                >
+                  ▲
+                </text>
+                <text
+                  fg={theme.textMuted}
+                  onMouseUp={() => navigateProvider("next")}
+                >
+                  ▼
+                </text>
+              </box>
+            </box>
             <scrollbox
               ref={(r: ScrollBoxRenderable) => (sidebarScroll = r)}
               height={height()}

@@ -281,16 +281,13 @@ export const ArcticCodexAuth: Plugin = async ({ client }: PluginInput) => {
 					 * @returns Authorization flow configuration
 					 */
 					authorize: async () => {
-						const { pkce, state, url } = await createAuthorizationFlow();
-						const serverInfo = await startLocalOAuthServer({ state });
+					const { pkce, state, url } = await createAuthorizationFlow();
+					const serverInfo = await startLocalOAuthServer({ state });
 
-						// Attempt to open browser automatically
-						openBrowserUrl(url);
-
-						return {
-							url,
-							method: "auto" as const,
-							instructions: AUTH_LABELS.INSTRUCTIONS,
+					return {
+						url,
+						method: "auto" as const,
+						instructions: "Click 'Open Link' to authenticate with ChatGPT.",
 							callback: async () => {
 								const result = await serverInfo.waitForCode(state);
 								serverInfo.close();

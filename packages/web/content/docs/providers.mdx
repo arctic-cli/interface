@@ -3,43 +3,266 @@ title: Providers
 description: Supported providers and how to connect them.
 ---
 
-Arctic supports multiple provider types so you can keep all models in one CLI.
+Arctic supports **130+ AI providers** in one unified interface, making it the most comprehensive multi-provider AI coding CLI available.
 
-## How to connect
+## Quick Start
 
-- **OAuth/device login**: `arctic auth login` or `/connect` (in TUI)
-- **API keys**: set environment variables and launch Arctic
+### OAuth/Device Login (Coding Plans)
 
-For credential management, see [Authentication](/docs/authentication).
+```bash
+arctic auth login
+```
 
-## Provider types
+Choose your provider and follow the browser flow.
 
-### Coding‑plan providers
+### API Keys
 
-These are subscription‑based coding plans (handled via OAuth/device login):
+Set environment variables and launch Arctic:
 
-- Anthropic
-- Codex (ChatGPT)
-- Google Gemini
-- GitHub Copilot
-- Z.ai
-- Antigravity
-- Amp code
-- Kimi for coding
+```bash
+export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="sk-ant-..."
+export GOOGLE_API_KEY="..."
+arctic
+```
 
-### API providers
+For detailed credential management, see [Authentication](/docs/authentication).
 
-These are API‑key or custom endpoint providers:
+## Provider Categories
 
-- Anthropic
-- OpenAI
-- Google
-- OpenRouter
-- OpenAI‑compatible endpoints (custom URLs)
+### Coding Plans (Subscription-Based)
 
-## Custom providers (OpenAI‑compatible)
+Premium coding-focused subscriptions with OAuth authentication:
 
-You can add OpenAI‑compatible endpoints in config:
+#### **Codex (ChatGPT)**
+- **Models**: gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex, gpt-5.1-codex-mini
+- **Features**: Latest GPT-5 series, interleaved thinking, 200k context
+- **Auth**: OAuth via ChatGPT account
+- **Cost**: Free with subscription
+
+#### **Gemini CLI (Google)**
+- **Models**: Gemini 2.0 Flash, Gemini 2.5 Pro, Gemini 2.5 Flash
+- **Features**: Code Assist integration, 1M+ context, thinking mode
+- **Auth**: OAuth with Google Cloud project (optional)
+- **Cost**: Free tier available, paid tiers require GCP project
+
+#### **Antigravity**
+- **Models**: Gemini 3 Pro High/Low, Gemini 3 Flash, Claude Sonnet 4.5, Claude Opus 4.5
+- **Features**: Access to both Gemini 3 and Claude 4.5 models
+- **Auth**: OAuth
+- **Cost**: Free with subscription
+
+#### **GitHub Copilot**
+- **Models**: GPT-4o, Claude Sonnet, o1-preview, o1-mini
+- **Features**: Enterprise support, multiple model access
+- **Auth**: OAuth via GitHub
+- **Cost**: $10/month individual, $19/month business
+
+#### **GitHub Copilot Enterprise**
+- **Models**: Same as Copilot plus enterprise features
+- **Features**: Organization-wide policies, audit logs
+- **Auth**: OAuth via GitHub Enterprise
+- **Cost**: $39/user/month
+
+#### **Claude Code (Anthropic)**
+- **Models**: Claude Sonnet 4.5, Claude Opus 4.5
+- **Features**: Extended thinking, prompt caching
+- **Auth**: OAuth
+- **Cost**: Free tier + paid plans
+
+#### **Z.AI**
+- **Models**: Specialized coding models
+- **Features**: Coding-optimized inference
+- **Auth**: OAuth
+- **Cost**: Subscription-based
+
+#### **Kimi for Coding**
+- **Models**: Long-context coding models
+- **Features**: Extended context windows
+- **Auth**: OAuth
+- **Cost**: Subscription-based
+
+#### **Amp Code**
+- **Models**: GPT-5, GPT-5.1, GPT-5.2
+- **Features**: Latest GPT-5 series access
+- **Auth**: API key
+- **Cost**: Free tier available
+
+#### **Qwen Code (Alibaba)**
+- **Models**: Coder Model (mainline), Vision Model (mainline)
+- **Features**: 1M context, multimodal support (text, image, audio, video, PDF)
+- **Auth**: OAuth
+- **Cost**: Free with subscription
+
+#### **MiniMax Coding Plan**
+- **Models**: MiniMax-M2.1
+- **Features**: Competitive pricing
+- **Auth**: API key
+- **Cost**: $0.30/M input, $1.20/M output
+
+### API Providers
+
+Pay-per-use API access with flexible authentication:
+
+#### **OpenAI**
+- **Models**: GPT-4o, o1, o3-mini, GPT-4 Turbo, GPT-3.5 Turbo
+- **Env**: `OPENAI_API_KEY`
+- **Pricing**: Variable by model
+
+#### **Anthropic**
+- **Models**: Claude Sonnet 4.5, Claude Opus 4, Claude Haiku 3.5
+- **Env**: `ANTHROPIC_API_KEY`
+- **Features**: Prompt caching, extended thinking
+- **Pricing**: Variable by model
+
+#### **Google (Gemini API)**
+- **Models**: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Env**: `GOOGLE_API_KEY`
+- **Features**: Free tier, multimodal
+- **Pricing**: Free tier + paid
+
+#### **Amazon Bedrock**
+- **Models**: Nova (Micro/Lite/Pro/Premier), Claude, Llama, Mistral
+- **Env**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- **Features**: Regional model access, auto-region prefixing
+- **Pricing**: Variable by model and region
+
+#### **Azure OpenAI**
+- **Models**: GPT-4o, GPT-4, GPT-3.5
+- **Env**: `AZURE_API_KEY`, `AZURE_RESOURCE_NAME`
+- **Features**: Enterprise compliance
+- **Pricing**: Enterprise pricing
+
+#### **Google Vertex AI**
+- **Models**: Gemini models via Vertex
+- **Env**: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`
+- **Features**: Enterprise features, regional deployment
+- **Pricing**: Enterprise pricing
+
+#### **Google Vertex Anthropic**
+- **Models**: Claude via Vertex AI
+- **Env**: `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`
+- **Features**: Claude models through GCP
+- **Pricing**: Enterprise pricing
+
+#### **Perplexity**
+- **Models**: Sonar models
+- **Env**: `PERPLEXITY_API_KEY`
+- **Features**: Search-augmented generation
+- **Pricing**: Variable by model
+
+#### **OpenRouter**
+- **Models**: 200+ models aggregated
+- **Env**: `OPENROUTER_API_KEY`
+- **Features**: Access to many providers through one API
+- **Pricing**: Variable by model
+
+#### **Ollama**
+- **Models**: Local models (Llama, Mistral, Mixtral, etc.)
+- **Auth**: Configure host and port
+- **Features**: Fully local, no API costs
+- **Pricing**: Free (local compute)
+
+#### **Groq**
+- **Models**: Llama, Mixtral, Gemma
+- **Env**: `GROQ_API_KEY`
+- **Features**: Ultra-fast inference
+- **Pricing**: Competitive rates
+
+#### **Together AI**
+- **Models**: Open source models
+- **Env**: `TOGETHER_API_KEY`
+- **Features**: Fast inference for open models
+- **Pricing**: Competitive rates
+
+#### **DeepSeek**
+- **Models**: DeepSeek Coder, DeepSeek Chat
+- **Env**: `DEEPSEEK_API_KEY`
+- **Features**: Reasoning models
+- **Pricing**: Competitive rates
+
+#### **Cerebras**
+- **Models**: Llama models
+- **Env**: `CEREBRAS_API_KEY`
+- **Features**: Extremely fast inference
+- **Pricing**: Competitive rates
+
+#### **Mistral AI**
+- **Models**: Mistral Large, Medium, Small
+- **Env**: `MISTRAL_API_KEY`
+- **Features**: European AI provider
+- **Pricing**: Variable by model
+
+#### **Cohere**
+- **Models**: Command, Command R+
+- **Env**: `COHERE_API_KEY`
+- **Features**: Enterprise features
+- **Pricing**: Variable by model
+
+#### **xAI (Grok)**
+- **Models**: Grok models
+- **Env**: `XAI_API_KEY`
+- **Features**: Real-time information
+- **Pricing**: Variable by model
+
+## Multiple Accounts Per Provider
+
+Arctic supports connecting multiple accounts for the same provider:
+
+```bash
+# Add a second account
+arctic auth login anthropic --name work
+
+# List all accounts
+arctic auth list
+
+# Use specific account
+arctic run --model anthropic:work/claude-sonnet-4-5 "..."
+```
+
+**Benefits:**
+- Separate personal and work accounts
+- Independent usage tracking
+- Easy switching between accounts
+- Isolated rate limits
+
+## Custom Providers (OpenAI-Compatible)
+
+Add any OpenAI-compatible endpoint:
+
+### Basic Configuration
+
+```json
+{
+  "provider": {
+    "my-provider": {
+      "api": "https://api.example.com/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["MY_PROVIDER_KEY"],
+      "models": {
+        "my-model": {
+          "id": "my-model-id",
+          "name": "My Custom Model",
+          "temperature": true,
+          "reasoning": false,
+          "attachment": true,
+          "tool_call": true,
+          "limit": {
+            "context": 128000,
+            "output": 4096
+          },
+          "cost": {
+            "input": 0.5,
+            "output": 1.5
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Advanced Configuration
 
 ```json
 {
@@ -48,12 +271,199 @@ You can add OpenAI‑compatible endpoints in config:
       "api": "https://api.example.com/v1",
       "npm": "@ai-sdk/openai-compatible",
       "options": {
-        "apiKey": "$MY_PROVIDER_KEY"
+        "apiKey": "$MY_PROVIDER_KEY",
+        "headers": {
+          "X-Custom-Header": "value"
+        },
+        "timeout": 60000,
+        "baseURL": "https://api.example.com/v1"
+      },
+      "models": {
+        "fast-model": {
+          "id": "fast",
+          "name": "Fast Model",
+          "temperature": true,
+          "reasoning": false,
+          "attachment": false,
+          "tool_call": true,
+          "limit": {
+            "context": 32000,
+            "output": 2048
+          }
+        }
       }
     }
   }
 }
 ```
+
+### Local Providers
+
+```json
+{
+  "provider": {
+    "local-llm": {
+      "api": "http://localhost:8080/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "not-needed"
+      }
+    }
+  }
+}
+```
+
+## Provider Configuration
+
+### Enable/Disable Providers
+
+```json
+{
+  "enabled_providers": ["openai", "anthropic", "google"],
+  "disabled_providers": ["provider-to-disable"]
+}
+```
+
+### Model Filtering
+
+```json
+{
+  "provider": {
+    "openai": {
+      "whitelist": ["gpt-4o", "gpt-4-turbo"],
+      "blacklist": ["gpt-3.5-turbo"]
+    }
+  }
+}
+```
+
+### Provider Options
+
+```json
+{
+  "provider": {
+    "openai": {
+      "options": {
+        "timeout": 120000,
+        "headers": {
+          "X-Custom": "value"
+        }
+      }
+    }
+  }
+}
+```
+
+## Switching Providers
+
+### In TUI
+
+Press `Ctrl+X M` to open the model picker and select any model from any provider.
+
+### In CLI
+
+```bash
+# Use specific model
+arctic run --model openai/gpt-4o "..."
+
+# Switch mid-conversation
+arctic run --continue --model anthropic/claude-sonnet-4-5 "..."
+```
+
+### Default Model
+
+Set in config:
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-5",
+  "small_model": "openai/gpt-4o-mini"
+}
+```
+
+## Provider-Specific Features
+
+### Codex (ChatGPT)
+
+**Token Refresh**: Automatic token refresh for long sessions
+
+**Model Selection**: Access to latest GPT-5 series
+
+**Interleaved Thinking**: See reasoning in real-time
+
+### Gemini CLI (Google)
+
+**Code Assist**: Integrated with Google Cloud Code Assist
+
+**Project Context**: Automatic project detection
+
+**Managed Projects**: Free tier with managed GCP projects
+
+### Antigravity
+
+**Multi-Model**: Access both Gemini 3 and Claude 4.5
+
+**No Setup**: No API keys or GCP projects needed
+
+### GitHub Copilot
+
+**Enterprise Support**: Separate enterprise provider
+
+**Multiple Models**: GPT-4o, Claude, o1 series
+
+**Organization Policies**: Enterprise-wide settings
+
+### Amazon Bedrock
+
+**Auto-Region Prefixing**: Automatic region prefix for models (us., eu., apac., au.)
+
+**Multi-Region**: Support for all AWS regions including GovCloud
+
+**Credential Providers**: Support for AWS profiles and credential chains
+
+### Ollama
+
+**Dynamic Model Discovery**: Automatically detects installed models
+
+**Local Inference**: No API costs, full privacy
+
+**Custom Host**: Configure host and port
+
+## Troubleshooting
+
+### Provider Not Showing
+
+1. Check authentication: `arctic auth list`
+2. Verify environment variables
+3. Check enabled/disabled lists in config
+4. Refresh models: `arctic models --refresh`
+
+### Model Not Available
+
+1. Verify provider is authenticated
+2. Check model whitelist/blacklist
+3. Ensure model is supported by provider
+4. Check for experimental model flag
+
+### Rate Limits
+
+1. View usage: `arctic usage` or `/usage` in TUI
+2. Switch to different provider
+3. Use multiple accounts
+4. Wait for limit reset
+
+### Connection Issues
+
+1. Check internet connection
+2. Verify API endpoint is accessible
+3. Check for firewall/proxy issues
+4. Try different provider
+
+### Token Refresh Failed
+
+1. Re-authenticate: `arctic auth logout && arctic auth login`
+2. Check token expiration
+3. Verify OAuth credentials
 
 ## Full list
 

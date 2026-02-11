@@ -103,11 +103,9 @@ export const ArcticAmpAuth: Plugin = async (_input: PluginInput) => {
             const server = startAmpAuthServer({ authToken, port: callbackPort })
             await server.listen()
 
-            openBrowserUrl(loginUrl)
-
             return {
               url: loginUrl,
-              instructions: `If the callback fails, open ${UI.hyperlink(manualUrl, manualUrl)} and paste the access token.`,
+              instructions: `Click 'Open Link' to authenticate, or if the callback fails, open ${UI.hyperlink(manualUrl, manualUrl)} and paste the access token.`,
               method: "auto",
               callback: async () => {
                 try {
@@ -131,11 +129,9 @@ export const ArcticAmpAuth: Plugin = async (_input: PluginInput) => {
             const authToken = crypto.randomBytes(32).toString("hex")
             const manualUrl = `${baseUrl}/auth/cli-login?authToken=${encodeURIComponent(authToken)}`
 
-            openBrowserUrl(manualUrl)
-
             return {
               url: manualUrl,
-              instructions: "Open the URL above, complete login, then paste the access token here.",
+              instructions: "Click 'Open Link' to authenticate, complete login, then paste the access token here.",
               method: "code",
               callback: async (code: string) => {
                 if (!code) return { type: "failed" }

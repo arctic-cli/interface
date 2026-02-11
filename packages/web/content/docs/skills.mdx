@@ -1,0 +1,411 @@
+---
+title: Skills
+description: Reusable prompt templates for specialized tasks.
+---
+
+Skills are reusable prompt templates that provide specialized instructions and context for specific tasks. They're stored as markdown files with frontmatter and can be discovered and loaded dynamically by the AI.
+
+## What are Skills?
+
+Skills are like mini-agents or prompt templates that can be invoked on-demand. They provide:
+
+- **Specialized instructions** for specific tasks (e.g., code reviews, git workflows, documentation)
+- **Tool restrictions** to limit what operations the skill can perform
+- **Reusability** across projects and sessions
+- **Discoverability** through search
+
+Unlike agents, skills are loaded dynamically during a conversation when needed, rather than being selected at the start of a session.
+
+## Creating a Skill
+
+Skills are stored as markdown files in:
+
+- **Global**: `~/.config/arctic/skills/*.md`
+- **Project**: `.arctic/skills/*.md`, `.agent/skills/*.md`, or `.opencode/skills/*.md`
+
+Arctic supports multiple project directory structures (`.arctic/`, `.agent/`, `.opencode/`) for compatibility with different tools and workflows. Skills can be organized in subdirectories within the `skills/` folder for better organization.
+
+### Skill File Format
+
+```md
+---
+name: code-review
+description: Perform thorough code reviews with security and performance analysis
+compatibility: ["arctic", "claude-code", "cursor"]
+license: MIT
+argument-hint: ["file-path", "focus-area"]
+allowed-tools: ["read", "grep", "glob"]
+disable-model-invocation: false
+metadata:
+  author: Your Name
+  version: 1.0.0
+---
+
+You are an expert code reviewer. When reviewing code:
+
+1. Check for security vulnerabilities
+2. Identify performance bottlenecks
+3. Suggest improvements for readability
+4. Verify error handling
+5. Check for edge cases
+
+Focus on constructive feedback and provide specific examples.
+```
+
+### Frontmatter Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Unique identifier for the skill |
+| `description` | string | ✅ | What the skill does (min 20 chars) |
+| `compatibility` | string[] | ❌ | Compatible tools/platforms |
+| `license` | string | ❌ | License for the skill |
+| `argument-hint` | string[] | ❌ | Hints for expected arguments |
+| `allowed-tools` | string[] | ❌ | Tools the skill can use |
+| `disable-model-invocation` | boolean | ❌ | Prevent auto-activation |
+| `metadata` | object | ❌ | Additional key-value pairs |
+
+## Using Skills
+
+### In the TUI
+
+Skills are automatically available to the AI through two built-in tools:
+
+1. **`skill_find`** - Search for available skills
+2. **`skill_use`** - Load one or more skills by name
+
+The AI can discover and use skills automatically when appropriate. You can also explicitly request a skill:
+
+```
+Use the code-review skill to review src/index.ts
+```
+
+### In CLI
+
+Skills are loaded automatically when the AI needs them. You can also create custom commands that use specific skills.
+
+### Programmatically
+
+Skills can be accessed via the registry:
+
+```ts
+import { SkillRegistry } from "@/skill"
+
+// Search for skills
+const results = await SkillRegistry.search("code review")
+
+// Get a specific skill
+const skill = await SkillRegistry.get("code-review")
+
+// List all skills
+const allSkills = await SkillRegistry.all()
+```
+
+## Skill Examples
+
+### Git Release Skill
+
+```md
+---
+name: git-release
+description: Create a new git release with changelog generation and version bumping
+allowed-tools: ["bash", "read", "write", "grep"]
+argument-hint: ["version", "release-type"]
+---
+
+You are a release manager. When creating a release:
+
+1. Verify the working directory is clean
+2. Generate a changelog from git commits
+3. Update version numbers in package files
+4. Create a git tag
+5. Push the tag to remote
+
+Always confirm the version number before proceeding.
+```
+
+### Documentation Writer Skill
+
+```md
+---
+name: doc-writer
+description: Write comprehensive documentation with examples and best practices
+allowed-tools: ["read", "write", "glob", "grep"]
+compatibility: ["arctic", "claude-code"]
+---
+
+You are a technical documentation specialist. When writing docs:
+
+1. Start with a clear overview
+2. Include practical examples
+3. Document all parameters and return values
+4. Add troubleshooting sections
+5. Use consistent formatting
+
+Follow the existing documentation style in the project.
+```
+
+### Security Auditor Skill
+
+```md
+---
+name: security-audit
+description: Perform security audits focusing on common vulnerabilities and best practices
+allowed-tools: ["read", "grep", "glob"]
+disable-model-invocation: true
+---
+
+You are a security auditor. When auditing code:
+
+1. Check for SQL injection vulnerabilities
+2. Verify input validation
+3. Check for XSS vulnerabilities
+4. Verify authentication and authorization
+5. Check for sensitive data exposure
+6. Review dependency security
+
+Provide severity ratings (Critical, High, Medium, Low) for each finding.
+```
+
+### Test Generator Skill
+
+```md
+---
+name: test-generator
+description: Generate comprehensive unit and integration tests with edge cases
+allowed-tools: ["read", "write", "glob"]
+argument-hint: ["file-path", "test-framework"]
+---
+
+You are a test engineer. When generating tests:
+
+1. Cover happy paths
+2. Test edge cases
+3. Test error conditions
+4. Mock external dependencies
+5. Ensure tests are isolated
+6. Follow the project's testing conventions
+
+Generate tests that are maintainable and well-documented.
+```
+
+## Best Practices
+
+### Naming
+
+- Use kebab-case for skill names
+- Choose descriptive, specific names
+- Avoid generic names like "helper" or "utility"
+
+### Description
+
+- Write clear, concise descriptions (minimum 20 characters)
+- Explain what the skill does and when to use it
+- Include key capabilities
+
+### Tool Restrictions
+
+Use `allowed-tools` to limit what the skill can do:
+
+```yaml
+allowed-tools: ["read", "grep", "glob"]  # Read-only operations
+```
+
+This prevents skills from making unintended changes.
+
+### Argument Hints
+
+Provide hints for expected arguments:
+
+```yaml
+argument-hint: ["file-path", "severity-level", "output-format"]
+```
+
+This helps the AI understand how to use the skill.
+
+### Disable Auto-Invocation
+
+For sensitive operations, prevent automatic activation:
+
+```yaml
+disable-model-invocation: true
+```
+
+The skill must be explicitly requested by the user.
+
+## Skill Discovery
+
+The AI can search for skills using natural language:
+
+```
+Find skills related to testing
+```
+
+This uses the `skill_find` tool to search skill names and descriptions.
+
+## Skill vs Agent vs Command
+
+| Feature | Skill | Agent | Command |
+|---------|-------|-------|---------|
+| **When loaded** | On-demand | Session start | Explicit invocation |
+| **Scope** | Task-specific | Conversation-wide | Single execution |
+| **Tool control** | `allowed-tools` | `tools` + `permission` | Inherits from agent |
+| **Reusability** | High | Medium | High |
+| **Use case** | Specialized tasks | Conversation style | Templated prompts |
+
+### When to Use Each
+
+**Use Skills when:**
+- You have reusable task-specific instructions
+- You want the AI to discover and use them automatically
+- You need tool restrictions per task
+
+**Use Agents when:**
+- You want to set the conversation style/persona
+- You need session-wide tool permissions
+- You're defining a primary assistant mode
+
+**Use Commands when:**
+- You have templated prompts with variables
+- You want explicit user invocation
+- You need quick shortcuts for common tasks
+
+## Sharing Skills
+
+Skills are portable and can be shared:
+
+1. Export your skills directory
+2. Share individual `.md` files
+3. Publish to a skills repository
+
+### Example: Sharing a Skill
+
+```bash
+# Copy a global skill to share
+cp ~/.config/arctic/skills/my-skill.md ./my-skill.md
+
+# Copy a project skill
+cp .arctic/skills/my-skill.md ./my-skill.md
+# or
+cp .agent/skills/my-skill.md ./my-skill.md
+
+# Share your entire skills directory
+tar -czf my-skills.tar.gz ~/.config/arctic/skills/
+
+# Share project skills
+tar -czf project-skills.tar.gz .arctic/skills/
+```
+
+### Installing Shared Skills
+
+```bash
+# Install to global skills
+cp shared-skill.md ~/.config/arctic/skills/
+
+# Install to project skills
+cp shared-skill.md .arctic/skills/
+# or
+cp shared-skill.md .agent/skills/
+```
+
+## Troubleshooting
+
+### Skill Not Found
+
+If a skill isn't being discovered:
+
+1. Check the file is in the correct directory:
+   - Global: `~/.config/arctic/skills/*.md`
+   - Project: `.arctic/skills/*.md`, `.agent/skills/*.md`, or `.opencode/skills/*.md`
+   - Skills can be in subdirectories (e.g., `skills/code-review/security.md`)
+2. Verify the frontmatter is valid YAML
+3. Ensure `name` and `description` are present
+4. Check the description is at least 20 characters
+5. Restart Arctic to reload skills
+
+### Skill Not Loading
+
+If a skill loads but doesn't work:
+
+1. Check `allowed-tools` includes necessary tools
+2. Verify the skill content is clear and specific
+3. Test with explicit invocation first
+
+### Skill Conflicts
+
+If multiple skills have the same name:
+
+- Project skills override global skills
+- The most recently loaded skill wins
+- Check logs for override warnings
+
+## Advanced Usage
+
+### Conditional Skills
+
+Skills can include conditional logic in their content:
+
+```md
+---
+name: deploy
+description: Deploy application with environment-specific configuration
+---
+
+When deploying:
+
+1. Determine the target environment (dev/staging/prod)
+2. If production:
+   - Require manual confirmation
+   - Run full test suite
+   - Create backup
+3. If staging/dev:
+   - Skip confirmation
+   - Run smoke tests only
+4. Deploy using the appropriate configuration
+```
+
+### Skill Composition
+
+Skills can reference other skills:
+
+```md
+---
+name: full-review
+description: Comprehensive code review including security, performance, and style
+---
+
+Perform a comprehensive review by:
+
+1. Use the security-audit skill to check for vulnerabilities
+2. Use the performance-check skill to identify bottlenecks
+3. Use the style-check skill to verify code style
+4. Summarize all findings with priorities
+```
+
+### Dynamic Skills
+
+Skills can adapt based on project context:
+
+```md
+---
+name: test-runner
+description: Run tests using the project's testing framework
+---
+
+Detect the testing framework used in this project:
+
+- If Jest: run `npm test`
+- If Vitest: run `npm run test`
+- If Bun: run `bun test`
+- If pytest: run `pytest`
+
+Report test results and any failures.
+```
+
+## Next Steps
+
+- Create your first skill for a common task
+- Explore skill composition for complex workflows
+- Share useful skills with the community
+- Check out [Commands](/docs/commands) for templated prompts
+- Learn about [Agents](/docs/agents) for conversation-wide behavior

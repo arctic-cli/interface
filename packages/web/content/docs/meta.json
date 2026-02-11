@@ -13,12 +13,18 @@
     "tools",
     "agents",
     "commands",
+    "skills",
     "permissions",
     "mcp",
     "providers",
     "authentication",
     "snapshots",
+    "plugins",
     "---Reference---",
-    "troubleshooting"
+    "projects",
+    "features",
+    "tutorials",
+    "troubleshooting",
+    "lore"
   ]
 }

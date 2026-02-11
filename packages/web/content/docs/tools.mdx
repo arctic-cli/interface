@@ -5,22 +5,454 @@ description: Built‑in tools and how they behave.
 
 Arctic exposes a curated toolset to the model. Tools are permission‑gated and can be disabled per agent.
 
-## Built‑in tools
+## Built‑in Tools
 
-- `bash` — run shell commands
-- `read` / `write` / `edit` — file access
-- `list` / `glob` / `grep` — file discovery and search
-- `webfetch` — fetch URLs as text
-- `websearch` / `codesearch` — web and code search (requires Arctic provider or `ARCTIC_ENABLE_EXA`)
-- `task` — spawn a sub‑agent session
-- `todowrite` / `todoread` — per‑session todo list
-- `batch` — run tools in parallel
+### File Operations
 
-## Controlling tools
+#### `read`
+Read file contents with optional line range.
 
-Tools can be limited by:
+**Parameters:**
+- `filePath` (string): Absolute path to file
+- `offset` (number, optional): Starting line number (0-based)
+- `limit` (number, optional): Number of lines to read
 
-- Agent frontmatter (`tools` and `permission`)
-- Global config (`tools`, `permission`)
+**Example:**
+```
+Read the first 100 lines of src/index.ts
+```
 
-See [Permissions](/docs/permissions).
+#### `write`
+Write content to a file (overwrites existing content).
+
+**Parameters:**
+- `filePath` (string): Absolute path to file
+- `content` (string): Content to write
+
+**Permissions:** Requires `edit` permission
+
+**Example:**
+```
+Write a new configuration file
+```
+
+#### `edit`
+Make precise edits to files using string replacement.
+
+**Parameters:**
+- `filePath` (string): Absolute path to file
+- `oldString` (string): Exact text to replace
+- `newString` (string): Replacement text
+- `replaceAll` (boolean, optional): Replace all occurrences
+
+**Permissions:** Requires `edit` permission
+
+**Example:**
+```
+Replace the old API endpoint with the new one
+```
+
+### File Discovery
+
+#### `glob`
+Find files matching glob patterns.
+
+**Parameters:**
+- `pattern` (string): Glob pattern (e.g., `**/*.ts`, `src/**/*.tsx`)
+- `path` (string, optional): Directory to search in
+
+**Example:**
+```
+Find all TypeScript files in the src directory
+```
+
+#### `grep`
+Search file contents using regex patterns.
+
+**Parameters:**
+- `pattern` (string): Regex pattern to search for
+- `include` (string, optional): File pattern to filter (e.g., `*.js`)
+- `path` (string, optional): Directory to search in
+
+**Example:**
+```
+Search for all TODO comments in JavaScript files
+```
+
+#### `list`
+List files and directories in a path.
+
+**Parameters:**
+- `path` (string, optional): Directory to list
+- `ignore` (string[], optional): Glob patterns to ignore
+
+**Example:**
+```
+List all files in the current directory
+```
+
+### Shell Execution
+
+#### `bash`
+Execute shell commands with optional timeout.
+
+**Parameters:**
+- `command` (string): Shell command to execute
+- `description` (string): What the command does (5-10 words)
+- `workdir` (string, optional): Working directory
+- `timeout` (number, optional): Timeout in milliseconds (max 600000)
+- `run_in_background` (boolean, optional): Run in background
+
+**Permissions:** Requires `bash` permission (supports pattern matching)
+
+**Example:**
+```
+Run the test suite
+```
+
+**Pattern Permissions:**
+```json
+{
+  "permission": {
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "npm test": "allow"
+    }
+  }
+}
+```
+
+### Web Access
+
+#### `webfetch`
+Fetch and convert web pages to text/markdown.
+
+**Parameters:**
+- `url` (string): URL to fetch
+- `format` (string): Output format (`text`, `markdown`, `html`)
+- `timeout` (number, optional): Timeout in seconds (max 120)
+
+**Permissions:** Requires `webfetch` permission
+
+**Example:**
+```
+Fetch the documentation from https://example.com/docs
+```
+
+#### `websearch`
+Search the web using EXA.
+
+**Parameters:**
+- `query` (string): Search query
+
+**Availability:** Requires Arctic provider or `ARCTIC_ENABLE_EXA=true`
+
+**Example:**
+```
+Search for recent TypeScript best practices
+```
+
+#### `codesearch`
+Search code repositories using EXA.
+
+**Parameters:**
+- `query` (string): Code search query
+
+**Availability:** Requires Arctic provider or `ARCTIC_ENABLE_EXA=true`
+
+**Example:**
+```
+Find examples of React hooks usage
+```
+
+### Orchestration
+
+#### `task`
+Spawn a sub-agent to handle a specific task.
+
+**Parameters:**
+- `description` (string): Short description (3-5 words)
+- `prompt` (string): Detailed task for the sub-agent
+- `subagent_type` (string): Type of agent to use
+- `session_id` (string, optional): Continue existing task session
+
+**Available Subagent Types:**
+- `general` - General-purpose agent
+- `explore` - Fast codebase exploration
+- `debug` - Debugging specialist
+- `feat` - Medium-complexity features
+- `feat-high` - High-complexity features
+- `code-simplifier` - Code refactoring
+
+**Example:**
+```
+Use the explore agent to find all API endpoints in the codebase
+```
+
+### Organization
+
+#### `todowrite`
+Create or update a todo list for the current session.
+
+**Parameters:**
+- `todos` (array): List of todo items with `id`, `content`, `status`, `priority`
+
+**Status Values:** `pending`, `in_progress`, `completed`, `cancelled`
+
+**Example:**
+```
+Create a todo list for implementing the new feature
+```
+
+#### `todoread`
+Read the current session's todo list.
+
+**Example:**
+```
+Show me the current todo list
+```
+
+### Skills
+
+#### `skill_find`
+Search for available skills by query.
+
+**Parameters:**
+- `query` (string): Search query (use `*` to list all)
+
+**Example:**
+```
+Find skills related to code review
+```
+
+#### `skill_use`
+Load one or more skills by name.
+
+**Parameters:**
+- `names` (string[]): Array of skill names to load
+
+**Example:**
+```
+Load the code-review and security-audit skills
+```
+
+See [Skills](/docs/skills) for more details.
+
+### Performance
+
+#### `batch`
+Execute multiple tools in parallel.
+
+**Parameters:**
+- `tool_calls` (array): Array of tool calls to execute
+
+**Availability:** Requires `experimental.batch_tool: true` in config
+
+**Example:**
+```json
+{
+  "experimental": {
+    "batch_tool": true
+  }
+}
+```
+
+## Custom Tools
+
+### Via Plugins
+
+Create custom tools in `.arctic/plugin/`:
+
+```ts
+import type { Plugin } from "@arctic-cli/plugin"
+
+export default (async () => {
+  return {
+    tool: async () => {
+      return {
+        myTool: {
+          description: "Does something custom",
+          parameters: {
+            type: "object",
+            properties: {
+              input: { type: "string" }
+            },
+            required: ["input"]
+          },
+          execute: async (args, context) => {
+            return {
+              output: "Tool result",
+              metadata: {}
+            }
+          }
+        }
+      }
+    }
+  }
+}) satisfies Plugin
+```
+
+### Via Tool Directory
+
+Create simple tools in `.arctic/tool/`:
+
+```ts
+// .arctic/tool/timestamp.ts
+export default {
+  description: "Get current timestamp",
+  args: {
+    format: { type: "string", description: "Format (iso/unix)" }
+  },
+  execute: async (args: { format: string }) => {
+    return args.format === "unix" 
+      ? Date.now().toString()
+      : new Date().toISOString()
+  }
+}
+```
+
+### Via MCP Servers
+
+Connect external tool servers via Model Context Protocol.
+
+See [MCP](/docs/mcp) for details.
+
+## Controlling Tools
+
+### Per-Agent
+
+In agent frontmatter:
+
+```md
+---
+tools:
+  bash: true
+  read: true
+  write: false
+  webfetch: false
+permission:
+  edit: ask
+  bash:
+    "*": ask
+    "git *": allow
+---
+```
+
+### Global Config
+
+In `arctic.json`:
+
+```json
+{
+  "tools": {
+    "bash": true,
+    "webfetch": false
+  },
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "*": "ask",
+      "git *": "allow"
+    },
+    "webfetch": "deny"
+  }
+}
+```
+
+### Permission Levels
+
+- `allow` - Execute without asking
+- `ask` - Prompt for confirmation
+- `deny` - Block execution
+
+When prompted, you can:
+- **Allow once** - For this execution only
+- **Always allow** - For the rest of the session
+- **Reject** - Block this execution
+
+## Tool Execution Context
+
+Tools receive execution context:
+
+```ts
+{
+  sessionID: string      // Current session
+  messageID: string      // Current message
+  agent: Agent.Info      // Current agent
+  abort: AbortSignal     // Cancellation signal
+}
+```
+
+## Tool Output Format
+
+Tools return structured output:
+
+```ts
+{
+  title: string                    // Short summary
+  output: string                   // User-facing text
+  metadata: Record<string, any>    // Structured data
+  attachments?: Attachment[]       // File attachments
+}
+```
+
+## Best Practices
+
+### File Operations
+
+- Always use absolute paths
+- Check file existence before editing
+- Use `read` before `write` for existing files
+- Prefer `edit` over `write` for modifications
+
+### Shell Commands
+
+- Provide clear descriptions
+- Use appropriate timeouts
+- Quote paths with spaces
+- Avoid interactive commands
+
+### Web Access
+
+- Respect rate limits
+- Use appropriate timeouts
+- Handle errors gracefully
+- Cache results when possible
+
+### Sub-Agents
+
+- Choose appropriate subagent types
+- Provide detailed prompts
+- Handle task results
+- Reuse sessions for related tasks
+
+## Troubleshooting
+
+### Tool Not Available
+
+Check if the tool is:
+1. Enabled in agent configuration
+2. Enabled in global configuration
+3. Available for your provider
+
+### Permission Denied
+
+1. Check permission configuration
+2. Verify pattern matching for bash
+3. Review session permission history
+
+### Tool Execution Failed
+
+1. Check tool parameters
+2. Verify file paths are absolute
+3. Check timeout settings
+4. Review error messages
+
+## Next Steps
+
+- [Permissions](/docs/permissions) - Configure tool access
+- [Skills](/docs/skills) - Reusable tool workflows
+- [Agents](/docs/agents) - Tool configuration per agent
+- [Plugins](/docs/plugins) - Create custom tools
+- [MCP](/docs/mcp) - External tool servers

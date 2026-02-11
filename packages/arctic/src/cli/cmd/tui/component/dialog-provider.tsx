@@ -11,6 +11,8 @@ import { useSDK } from "../context/sdk"
 import { useTheme } from "../context/theme"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { DialogModel } from "./dialog-model"
+import { Clipboard } from "../util/clipboard"
+import { useToast } from "../ui/toast"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   arctic: 0,
@@ -75,7 +77,11 @@ function ExistingConnectionDialog(props: ExistingConnectionDialogProps) {
       value: "add",
       onSelect: async () => {
         dialog.replace(() => (
-          <ConnectionNamePrompt providerID={props.providerID} onConfirm={async (name) => await props.onContinue(name)} />
+          <ConnectionNamePrompt providerID={props.providerID} onConfirm={async (name) => {
+            dialog.clear()
+            await new Promise(resolve => setTimeout(resolve, 150))
+            await props.onContinue(name)
+          }} />
         ))
       },
     },
@@ -279,8 +285,11 @@ function AutoMethod(props: AutoMethodProps) {
   const sdk = useSDK()
   const dialog = useDialog()
   const sync = useSync()
+  const toast = useToast()
 
   onMount(async () => {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
     const result = await sdk.client.provider.oauth.callback({
       providerID: props.providerID,
       method: props.index,
@@ -292,6 +301,8 @@ function AutoMethod(props: AutoMethodProps) {
 
     await sdk.client.instance.dispose()
     await sync.bootstrap()
+    
+    await new Promise(resolve => setTimeout(resolve, 50))
     dialog.replace(() => <DialogModel providerID={props.providerID} />)
   })
 
@@ -304,9 +315,30 @@ function AutoMethod(props: AutoMethodProps) {
         <text fg={theme.textMuted}>esc</text>
       </box>
       <box gap={1}>
-        <text fg={theme.primary} onMouseUp={() => openBrowserUrl(props.authorization.url)}>
+        <text fg={theme.primary}>
           {props.authorization.url}
         </text>
+        <box flexDirection="row" gap={1}>
+          <box
+            paddingLeft={1}
+            paddingRight={1}
+            backgroundColor={theme.primary}
+            onMouseUp={async () => {
+              await Clipboard.copy(props.authorization.url)
+              toast.show({ message: "Link copied to clipboard", variant: "success" })
+            }}
+          >
+            <text fg={theme.selectedListItemText}>Copy Link</text>
+          </box>
+          <box
+            paddingLeft={1}
+            paddingRight={1}
+            backgroundColor={theme.primary}
+            onMouseUp={() => openBrowserUrl(props.authorization.url)}
+          >
+            <text fg={theme.selectedListItemText}>Open Link</text>
+          </box>
+        </box>
 
         <text fg={theme.textMuted}>{props.authorization.instructions}</text>
       </box>
@@ -326,6 +358,7 @@ function CodeMethod(props: CodeMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const dialog = useDialog()
+  const toast = useToast()
   const [error, setError] = createSignal(false)
 
   return (
@@ -341,6 +374,8 @@ function CodeMethod(props: CodeMethodProps) {
         if (!error) {
           await sdk.client.instance.dispose()
           await sync.bootstrap()
+          
+          await new Promise(resolve => setTimeout(resolve, 50))
           dialog.replace(() => <DialogModel providerID={props.providerID} />)
           return
         }
@@ -349,9 +384,30 @@ function CodeMethod(props: CodeMethodProps) {
       description={() => (
         <box gap={1}>
           <text fg={theme.textMuted}>{props.authorization.instructions}</text>
-          <text fg={theme.primary} onMouseUp={() => openBrowserUrl(props.authorization.url)}>
+          <text fg={theme.primary}>
             {props.authorization.url}
           </text>
+          <box flexDirection="row" gap={1}>
+            <box
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={theme.primary}
+              onMouseUp={async () => {
+                await Clipboard.copy(props.authorization.url)
+                toast.show({ message: "Link copied to clipboard", variant: "success" })
+              }}
+            >
+              <text fg={theme.selectedListItemText}>Copy Link</text>
+            </box>
+            <box
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={theme.primary}
+              onMouseUp={() => openBrowserUrl(props.authorization.url)}
+            >
+              <text fg={theme.selectedListItemText}>Open Link</text>
+            </box>
+          </box>
 
           <Show when={error()}>
             <text fg={theme.error}>Invalid code</text>

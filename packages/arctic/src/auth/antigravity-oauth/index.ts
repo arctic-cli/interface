@@ -218,16 +218,9 @@ export const ArcticAntigravityAuth: Plugin = async ({ client }: PluginInput) => 
             // Start local callback server
             const server = await startLocalOAuthServer()
 
-            // Open browser to authorization URL
-            try {
-              openBrowserUrl(url)
-            } catch (error) {
-              console.warn("Failed to open browser automatically:", error)
-            }
-
             return {
               url,
-              instructions: `Opening browser to ${url}\n\nWaiting for authorization...`,
+              instructions: `Click 'Open Link' to authorize at ${url}\n\nWaiting for authorization...`,
               method: "auto" as const,
               async callback() {
                 try {

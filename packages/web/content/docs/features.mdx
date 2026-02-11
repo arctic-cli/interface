@@ -3,35 +3,336 @@ title: Features
 description: What Arctic can do.
 ---
 
-## Multi‑provider in one interface
+## Multi‑Provider Architecture
 
-Arctic keeps all your coding plan providers in one place so you can switch models without switching tools.
+Arctic supports **130+ AI providers** in one unified interface:
 
-## Usage limits in one view
+### Coding Plans (Subscription-Based)
+- **Codex** (ChatGPT) - Latest GPT-5 models with coding optimizations
+- **Gemini CLI** - Google's Gemini models with Code Assist
+- **Antigravity** - Gemini 3 Pro and Claude models
+- **GitHub Copilot** - Including Enterprise support
+- **Claude Code** - Anthropic's coding-focused plans
+- **Z.AI** - Specialized coding models
+- **Kimi for Coding** - Long-context coding assistance
+- **Amp Code** - GPT-5 series models
+- **Qwen Code** - Alibaba's coding models (1M context)
+- **MiniMax** - Coding plan support
 
-Arctic aggregates limits and credits across providers, including rolling windows like 5‑hour and weekly limits.
+### API Providers
+- **OpenAI** - GPT-4o, o1, o3-mini and more
+- **Anthropic** - Claude Sonnet, Opus, Haiku
+- **Google** - Gemini Pro, Flash, Thinking
+- **Amazon Bedrock** - Nova, Claude, Llama models
+- **Azure** - OpenAI and Cognitive Services
+- **Perplexity** - Sonar models
+- **OpenRouter** - 200+ models aggregated
+- **Ollama** - Local model support
+- **Groq** - Ultra-fast inference
+- **Together AI** - Open source models
+- **DeepSeek** - Reasoning models
+- **Cerebras** - High-performance inference
+- **And 100+ more...**
 
-## Statistics and activity tracking
+### Multiple Accounts Per Provider
+Connect multiple accounts for the same provider (e.g., personal + work):
+- Separate usage tracking
+- Easy switching between accounts
+- Independent rate limits
 
-Track your AI coding activity with GitHub-style heatmaps, cost breakdowns, and model usage statistics. See your streaks, peak coding hours, and token consumption over time.
+### Mid-Conversation Model Switching
+Switch models during a conversation without losing context:
+- Press `Ctrl+X M` in TUI
+- Use `--model` flag in CLI
+- Seamless context transfer
 
-## TUI focused on flow
+## Usage Tracking & Analytics
 
-The terminal UI is built for speed:
+### Real-Time Usage Limits
+- Track usage across all providers in one view
+- Rolling windows (5-hour, daily, weekly limits)
+- Credit balance monitoring
+- Rate limit warnings
 
-- Session list and navigation
-- Model and agent pickers
-- Copy/selection tooling
-- Command palette
+### Comprehensive Statistics
+View detailed analytics with `arctic stats`:
 
-## Agents and commands
+**Activity Heatmap**
+- GitHub-style contribution graph
+- Daily coding activity visualization
+- Streak tracking
+- Active days counter
 
-Define custom agents and command templates to standardize workflows across projects.
+**Token Analytics**
+- Input/output token breakdown
+- Cache read/write tracking
+- Cost per token type
+- "War and Peace" comparison (730k tokens)
 
-## Tools with permissions
+**Cost Analysis**
+- Total spend across all models
+- Cost per model breakdown
+- Average cost per session/day
+- Visual cost bars
 
-Tools are permission‑gated (bash, read/write/edit, webfetch, etc.) so automation stays controlled.
+**Usage Patterns**
+- Favorite models
+- Peak coding hours
+- Session statistics
+- Model usage distribution
 
-## Snapshots and diffing
+## Skills System
 
-Git‑based snapshots power safe undo/revert and benchmarking workflows.
+**Skills** are reusable prompt templates that can be discovered and loaded on-demand:
+
+- Store specialized instructions for specific tasks
+- Searchable by name and description
+- Tool restrictions per skill
+- Auto-discovery by AI
+- Share across projects
+
+Example skills:
+- Code reviews with security focus
+- Git release workflows
+- Documentation generation
+- Test creation
+- Security audits
+
+See [Skills](/docs/skills) for details.
+
+## Agents & Commands
+
+### Agents
+Custom assistants with specialized behavior:
+- Define conversation style and persona
+- Set tool permissions
+- Configure model preferences
+- Support for primary and subagent modes
+- Nested agent directories
+
+### Commands
+Templated prompts with variables:
+- Quick shortcuts for common tasks
+- Variable substitution
+- Model and agent overrides
+- Slash command integration
+- Import from Claude Code
+
+### Modes
+Deprecated in favor of agents, but still supported for backward compatibility.
+
+## Advanced Tool System
+
+### Built-in Tools
+- **File Operations**: `read`, `write`, `edit`, `glob`, `grep`, `list`
+- **Shell**: `bash` with command pattern permissions
+- **Web**: `webfetch`, `websearch`, `codesearch` (with EXA)
+- **Orchestration**: `task` (spawn sub-agents)
+- **Organization**: `todowrite`, `todoread` (per-session todos)
+- **Performance**: `batch` (parallel tool execution)
+- **Skills**: `skill_find`, `skill_use` (dynamic skill loading)
+
+### Custom Tools
+Add your own tools via:
+- **Plugins**: TypeScript/JavaScript tools in `.arctic/plugin/`
+- **Tool Directory**: Simple tool definitions in `.arctic/tool/`
+- **MCP Servers**: External tool servers via Model Context Protocol
+
+### Permission System
+Fine-grained control over tool usage:
+- `allow`, `ask`, or `deny` per tool
+- Pattern matching for bash commands (e.g., `git *`)
+- Per-agent permission overrides
+- Session-level permission memory
+- External directory restrictions
+
+## Model Context Protocol (MCP)
+
+Connect to external tool servers:
+
+### Remote MCP Servers
+- HTTP/HTTPS endpoints
+- Header-based authentication
+- OAuth 2.0 support with dynamic registration
+- Custom timeout configuration
+
+### Local MCP Servers
+- Stdio-based communication
+- Environment variable injection
+- Command-line arguments
+- Process management
+
+### Auto-Import
+Automatically import MCP servers from Claude Code:
+- Project-specific MCPs from `.mcp.json`
+- Directory-specific MCPs from `~/.claude.json`
+- Global MCPs from root config
+- One-time import prompts
+
+## TUI (Terminal User Interface)
+
+Keyboard-first workflow optimized for speed:
+
+### Navigation
+- Session list with search
+- Model picker (`Ctrl+X M`)
+- Agent picker (`Ctrl+X A`)
+- Command palette (`Ctrl+P`)
+- Theme picker
+
+### Editing
+- Multi-line input with syntax highlighting
+- Copy/paste with system clipboard
+- Selection tools
+- External editor integration (`Ctrl+X E`)
+
+### Visualization
+- Streaming responses with thinking display
+- Tool execution feedback
+- Usage meters
+- Activity heatmaps
+- Cost tracking
+
+### Slash Commands
+Built-in shortcuts:
+- `/models`, `/agents`, `/session`, `/new`
+- `/status`, `/usage`, `/stats`
+- `/mcp`, `/theme`, `/help`
+- `/undo`, `/redo`, `/compact`
+- `/rename`, `/copy`, `/export`
+- `/timeline`, `/thinking`, `/benchmark`
+- Custom commands from `.arctic/command/`
+
+## Snapshots & Version Control
+
+Git-based snapshots for safe experimentation:
+
+### Automatic Snapshots
+- Created before file modifications
+- Linked to sessions and messages
+- Incremental and efficient
+
+### Manual Snapshots
+- Create checkpoints anytime
+- Name and tag snapshots
+- Compare snapshots
+
+### Diffing & Revert
+- View changes between snapshots
+- Revert to any snapshot
+- Selective file restoration
+- Benchmark comparisons
+
+## Session Management
+
+### Session Features
+- Auto-save conversations
+- Resume from any point
+- Fork sessions for experimentation
+- Export/import sessions
+- Session timeline view
+- Compact history
+
+### Project Isolation
+- Sessions scoped to Git worktrees
+- Automatic project detection
+- Cross-project session search
+- Project-specific configuration
+
+## Configuration System
+
+### Layered Configuration
+Configs merge from multiple sources:
+1. Global: `~/.config/arctic/arctic.json`
+2. Parent directories: `.arctic/arctic.json`
+3. Project: `<project>/.arctic/arctic.json`
+4. Environment variables
+5. CLI flags
+
+### Config Features
+- JSON/JSONC support
+- TypeScript config files
+- Hot reload
+- Config export/backup
+- Migration from Claude Code/OpenCode
+
+### Customization
+- Default models (primary + small)
+- Theme selection
+- Keybindings
+- Provider enable/disable lists
+- Permission profiles
+- Experimental features
+
+## Plugin System
+
+Extend Arctic with custom integrations:
+
+### Plugin Capabilities
+- **Config Hook**: Modify configuration at runtime
+- **Event Hook**: Listen to sessions, messages, tools
+- **Auth Hook**: Custom authentication flows
+- **Tool Hook**: Add custom tools
+
+### Plugin Locations
+- Global: `~/.config/arctic/plugin/`
+- Project: `.arctic/plugin/`
+
+### Use Cases
+- Custom analytics
+- External notifications
+- Model routing logic
+- Permission extensions
+- Provider integrations
+
+## Claude Code Migration
+
+Seamless migration from Claude Code:
+
+### Auto-Import
+First launch detects and imports:
+- **Commands**: `~/.claude/commands` → `.arctic/command/claude/`
+- **Agents**: `~/.claude/agents` → `.arctic/agent/claude/`
+- **MCP Servers**: `~/.claude.json` → `.arctic/arctic.jsonc`
+
+### Compatibility
+- Command format compatible
+- Agent format compatible (with normalization)
+- MCP configuration compatible
+- One-time import prompts
+
+## Developer Experience
+
+### Performance
+- Fast startup with lazy loading
+- Efficient caching
+- Parallel tool execution
+- Streaming responses
+
+### Reliability
+- Automatic token refresh
+- Connection retry logic
+- Error recovery
+- Graceful degradation
+
+### Privacy
+- Local-first architecture
+- No data sent to Arctic servers
+- Optional anonymous telemetry
+- Disable with `arctic telemetry disable`
+
+### Cross-Platform
+- **macOS**: Intel and Apple Silicon
+- **Linux**: x64 and ARM64
+- **Windows**: x64 support
+- Clipboard integration (xclip on Linux)
+
+## Next Steps
+
+Explore specific features:
+- [Skills](/docs/skills) - Reusable prompt templates
+- [Agents](/docs/agents) - Custom assistants
+- [Commands](/docs/commands) - Templated shortcuts
+- [MCP](/docs/mcp) - External tool servers
+- [Plugins](/docs/plugins) - Custom extensions
+- [Providers](/docs/providers) - All 130+ providers

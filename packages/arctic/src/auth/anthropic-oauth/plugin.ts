@@ -245,13 +245,10 @@ export const ArcticAnthropicAuth: Plugin = async (input: PluginInput) => {
 
             const url = `https://claude.ai/oauth/authorize?${params.toString()}`
 
-            // Open browser automatically
-            openBrowserUrl(url)
-
             return {
               url,
               instructions:
-                "Opening browser to authenticate with Claude.ai...\n\nIf the browser doesn't open automatically, visit the URL above.",
+                "Click 'Open Link' to authenticate with Claude.ai, or copy the URL to open it manually.",
               method: "code" as const,
               async callback(code: string) {
                 if (!code) {

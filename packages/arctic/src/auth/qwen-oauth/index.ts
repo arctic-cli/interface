@@ -47,14 +47,12 @@ export const ArcticQwenAuth: Plugin = async (_: PluginInput) => {
 
             const url = result.deviceCode.verification_uri_complete || result.deviceCode.verification_uri
 
-            openBrowserUrl(url)
-
             const interval = result.deviceCode.interval ?? 2
             let pollInterval = interval * 1000
 
             return {
               url,
-              instructions: `Visit the URL in your browser and click the button to authorize.\n\nURL: ${UI.hyperlink(url)}`,
+              instructions: `Click 'Open Link' to visit the URL in your browser and authorize.\n\nURL: ${UI.hyperlink(url)}`,
               method: "auto" as const,
               async callback() {
                 while (true) {

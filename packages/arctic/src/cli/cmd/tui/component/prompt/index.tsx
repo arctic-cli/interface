@@ -1419,7 +1419,7 @@ export function Prompt(props: PromptProps) {
         >
           <box flexDirection="row" alignItems="flex-start" width="100%" gap={1}>
             <text attributes={TextAttributes.BOLD} fg={highlight()}>
-              {store.mode === "shell" ? "!" : ">"}
+              {store.mode === "shell" ? "!" : "▶"}
             </text>
             <box flexGrow={1} flexShrink={1} paddingRight={1}>
               <textarea
