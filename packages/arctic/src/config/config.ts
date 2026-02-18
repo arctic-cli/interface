@@ -85,8 +85,6 @@ export namespace Config {
 
     const promises: Promise<void>[] = []
     for (const dir of directories) {
-      await assertValid(dir)
-
       if (dir.endsWith(".arctic") || dir.endsWith(".opencode") || dir.endsWith(".agent") || dir === Flag.ARCTIC_CONFIG_DIR) {
         for (const file of ["arctic.jsonc", "arctic.json"]) {
           log.debug(`loading config from ${path.join(dir, file)}`)
@@ -144,23 +142,6 @@ export namespace Config {
     }
   })
 
-  const INVALID_DIRS = new Bun.Glob(`{${["agents", "commands", "plugins", "tools"].join(",")}}/`)
-  async function assertValid(dir: string) {
-    const invalid = await Array.fromAsync(
-      INVALID_DIRS.scan({
-        onlyFiles: false,
-        cwd: dir,
-      }),
-    )
-    for (const item of invalid) {
-      throw new ConfigDirectoryTypoError({
-        path: dir,
-        dir: item,
-        suggestion: item.substring(0, item.length - 1),
-      })
-    }
-  }
-
   async function installDependencies(dir: string) {
     if (Installation.isLocal()) return
 
@@ -182,7 +163,7 @@ export namespace Config {
     ).catch(() => {})
   }
 
-  const COMMAND_GLOB = new Bun.Glob("command/**/*.md")
+  const COMMAND_GLOB = new Bun.Glob("{command,commands}/**/*.md")
   async function loadCommand(dir: string) {
     const result: Record<string, Command> = {}
     for await (const item of COMMAND_GLOB.scan({
@@ -195,7 +176,7 @@ export namespace Config {
       if (!md.data) continue
 
       const name = (() => {
-        const patterns = ["/.arctic/command/", "/.opencode/command/", "/command/"]
+        const patterns = ["/.arctic/command/", "/.opencode/command/", "/.opencode/commands/", "/command/", "/commands/"]
         const pattern = patterns.find((p) => item.includes(p))
 
         if (pattern) {
@@ -220,7 +201,7 @@ export namespace Config {
     return result
   }
 
-  const AGENT_GLOB = new Bun.Glob("agent/**/*.md")
+  const AGENT_GLOB = new Bun.Glob("{agent,agents}/**/*.md")
   async function loadAgent(dir: string) {
     const result: Record<string, Agent> = {}
 
@@ -237,11 +218,17 @@ export namespace Config {
       let agentName = path.basename(item, ".md")
       const agentFolderPath = item.includes("/.arctic/agent/")
         ? item.split("/.arctic/agent/")[1]
-        : item.includes("/.opencode/agent/")
-          ? item.split("/.opencode/agent/")[1]
-          : item.includes("/agent/")
-            ? item.split("/agent/")[1]
-            : agentName + ".md"
+        : item.includes("/.arctic/agents/")
+          ? item.split("/.arctic/agents/")[1]
+          : item.includes("/.opencode/agent/")
+            ? item.split("/.opencode/agent/")[1]
+            : item.includes("/.opencode/agents/")
+              ? item.split("/.opencode/agents/")[1]
+              : item.includes("/agent/")
+                ? item.split("/agent/")[1]
+                : item.includes("/agents/")
+                  ? item.split("/agents/")[1]
+                  : agentName + ".md"
 
       // If agent is in a subfolder, include folder path in name
       if (agentFolderPath.includes("/")) {
@@ -294,7 +281,7 @@ export namespace Config {
     return result
   }
 
-  const PLUGIN_GLOB = new Bun.Glob("plugin/*.{ts,js}")
+  const PLUGIN_GLOB = new Bun.Glob("{plugin,plugins}/*.{ts,js}")
   async function loadPlugin(dir: string) {
     const plugins: string[] = []
 

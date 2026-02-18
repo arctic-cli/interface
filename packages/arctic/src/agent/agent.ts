@@ -237,7 +237,7 @@ export namespace Agent {
       if (maxSteps != undefined) item.maxSteps = maxSteps
 
       if (permission ?? cfg.permission) {
-        item.permission = mergeAgentPermissions(cfg.permission ?? {}, permission ?? {})
+        item.permission = mergeAgentPermissions(permission ?? {}, cfg.permission ?? {})
       }
     }
     return result

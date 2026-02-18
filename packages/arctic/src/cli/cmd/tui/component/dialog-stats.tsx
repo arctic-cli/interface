@@ -245,6 +245,10 @@ export function DialogStats() {
         <text fg={theme.textMuted}>Loading stats...</text>
       </Show>
 
+      <Show when={stats.error}>
+        <text fg={theme.error}>Error loading stats: {String(stats.error)}</text>
+      </Show>
+
       <Show when={stats() && tab() === "overview"}>
         <scrollbox ref={(r: ScrollBoxRenderable) => (scroll = r)} height={height()} scrollbarOptions={{ visible: false }}>
           <box gap={1}>

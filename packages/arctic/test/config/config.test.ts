@@ -508,3 +508,32 @@ test("handles provider options", async () => {
     },
   })
 })
+
+test("loads commands from .opencode/commands directory (plural)", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      const opencodeDir = path.join(dir, ".opencode")
+      await fs.mkdir(opencodeDir, { recursive: true })
+      const commandsDir = path.join(opencodeDir, "commands")
+      await fs.mkdir(commandsDir, { recursive: true })
+
+      await Bun.write(
+        path.join(commandsDir, "test.md"),
+        `---
+description: Test command from commands dir
+---
+Test command prompt`,
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.command?.["test"]).toEqual({
+        description: "Test command from commands dir",
+        template: "Test command prompt",
+      })
+    },
+  })
+})
