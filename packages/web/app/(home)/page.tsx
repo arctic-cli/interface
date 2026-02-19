@@ -51,6 +51,8 @@ async function joinWaitlist(_prevState: WaitlistState, formData: FormData): Prom
 }
 
 export default function HomePage() {
+  const heroVideoUrl = process.env.NEXT_PUBLIC_HERO_VIDEO_URL || "/arctic.mp4"
+
   return (
     <div className="min-h-screen w-full overflow-x-hidden antialiased relative">
       <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden md:block">
@@ -126,12 +128,12 @@ export default function HomePage() {
               <div className="w-full mt-8">
                 <div className="rounded-2xl overflow-hidden border border-border/50 shadow-2xl shadow-black/5">
                   <video
-                    src="/arctic.mp4"
+                    src={heroVideoUrl}
                     autoPlay
                     playsInline
                     loop
                     muted
-                    preload="auto"
+                    preload="metadata"
                     className="w-full h-auto block"
                   >
                     Your browser does not support the video tag.
