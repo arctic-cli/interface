@@ -10,7 +10,7 @@ export function GridBackground({ children, className }: GridBackgroundProps) {
         className="absolute inset-0 dark:hidden"
         style={{
           backgroundImage:
-            "linear-gradient(oklch(from var(--foreground) l c h / 0.02) 1px, transparent 1px), linear-gradient(90deg, oklch(from var(--foreground) l c h / 0.02) 1px, transparent 1px)",
+            "linear-gradient(oklch(from var(--foreground) l c h / 0.06) 1px, transparent 1px), linear-gradient(90deg, oklch(from var(--foreground) l c h / 0.06) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
           maskImage: "radial-gradient(ellipse 60% 22% at 50% 24%, black 0%, transparent 100%)",
           WebkitMaskImage: "radial-gradient(ellipse 60% 22% at 50% 24%, black 0%, transparent 100%)",

@@ -86,7 +86,7 @@ export function WaitlistForm({ action }: WaitlistFormProps) {
           target="_blank"
           rel="noreferrer"
         >
-          <svg viewBox="0 0 1024 1024" fill="none" className="h-5 w-5">
+          <svg viewBox="0 0 1024 1024" fill="none" className="h-5 w-5 invert dark:invert-0">
             <path
               fillRule="evenodd"
               clipRule="evenodd"

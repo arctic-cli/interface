@@ -2,6 +2,23 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { Moon02Icon, Sun01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { useTheme } from "next-themes"
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  return (
+    <button
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className="text-muted-foreground hover:text-foreground transition-colors"
+      aria-label="Toggle theme"
+    >
+      <HugeiconsIcon icon={Sun01Icon} className="h-5 w-5 hidden dark:block" />
+      <HugeiconsIcon icon={Moon02Icon} className="h-5 w-5 dark:hidden" />
+    </button>
+  )
+}
 
 export function Navbar() {
   return (
@@ -38,15 +55,17 @@ export function Navbar() {
             >
               Discord
             </Link>
+            <ThemeToggle />
           </div>
 
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-4">
             <Link
               href="/docs"
               className="text-base font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               Docs
             </Link>
+            <ThemeToggle />
           </div>
         </div>
       </div>

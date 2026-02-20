@@ -236,7 +236,7 @@ export default function HomePage() {
         <section className="py-32">
           <div className="mx-auto max-w-7xl">
             <div className="text-center space-y-8 px-6 md:px-16">
-              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Join the waitlist.</h2>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Join the waitlist</h2>
               <p className="text-lg text-muted-foreground">
                 Get early access updates and release notes straight to your inbox.
               </p>
