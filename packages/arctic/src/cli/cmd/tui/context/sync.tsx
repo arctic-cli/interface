@@ -181,7 +181,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         case "session.status": {
           const sessionID = event.properties.sessionID
           const status = event.properties.status
-          
+
           setStore("session_status", sessionID, status)
 
           // track work time
@@ -371,6 +371,26 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               }
             }
           })
+
+          // re-sync messages for sessions already in the store
+          // this recovers any message.part.updated events missed during disconnection,
+          // which is the primary cause of user messages appearing empty/hidden
+          for (const sessionID of Object.keys(store.message)) {
+            sdk.client.session
+              .messages({ sessionID, limit: 100 })
+              .then((res) => {
+                if (!res.data) return
+                setStore(
+                  produce((draft) => {
+                    draft.message[sessionID] = res.data!.map((m) => m.info)
+                    for (const m of res.data!) {
+                      draft.part[m.info.id] = m.parts
+                    }
+                  }),
+                )
+              })
+              .catch(() => {})
+          }
           break
         }
       }
@@ -490,8 +510,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               if (match.found) draft.session[match.index] = session.data!
               if (!match.found) draft.session.splice(match.index, 0, session.data!)
               draft.todo[sessionID] = todo.data ?? []
-              draft.message[sessionID] = messages.data!.map((x) => x.info)
-              for (const message of messages.data!) {
+              draft.message[sessionID] = (messages.data ?? []).map((x) => x.info)
+              for (const message of messages.data ?? []) {
                 draft.part[message.info.id] = message.parts
               }
               draft.session_diff[sessionID] = diff.data ?? []

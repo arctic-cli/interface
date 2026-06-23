@@ -55,7 +55,6 @@ export async function refreshAndUpdateToken(
 > {
 	// If a refresh is already in progress, wait for it to complete
 	if (refreshPromise) {
-		console.log(`[${PLUGIN_NAME}] Token refresh already in progress, waiting...`);
 		const result = await refreshPromise;
 		// After waiting, reload auth from disk to get the refreshed tokens
 		if (result.success) {
@@ -74,7 +73,6 @@ export async function refreshAndUpdateToken(
 			const refreshResult = await refreshAccessToken(refreshToken);
 
 			if (refreshResult.type === "failed") {
-				console.error(`[${PLUGIN_NAME}] ${ERROR_MESSAGES.TOKEN_REFRESH_FAILED}`);
 				return {
 					success: false,
 					response: new Response(
@@ -227,7 +225,6 @@ export async function transformRequestForCodex(
 			updatedInit: { ...init, body: JSON.stringify(transformedBody) },
 		};
 	} catch (e) {
-		console.error(`[${PLUGIN_NAME}] ${ERROR_MESSAGES.REQUEST_PARSE_ERROR}:`, e);
 		return undefined;
 	}
 }
@@ -306,7 +303,7 @@ export async function handleErrorResponse(
 			const when = mins !== undefined ? ` Try again in ~${mins} min.` : "";
 			friendly_message = `You have hit your ChatGPT usage limit${plan}.${when}`.trim();
 		} else if (response.status === 404) {
-            console.error(`[arctic-codex-plugin] 404 Body:`, raw);
+			logRequest(LOG_STAGES.ERROR_RESPONSE, { status: 404, body: raw });
         }
 
 		const enhanced = {
@@ -324,7 +321,6 @@ export async function handleErrorResponse(
 		enriched = raw;
 	}
 
-    console.error(`[${PLUGIN_NAME}] ${response.status} error:`, enriched);
 	logRequest(LOG_STAGES.ERROR_RESPONSE, {
 		status: response.status,
 		error: enriched,

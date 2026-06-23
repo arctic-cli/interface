@@ -37,6 +37,10 @@ export function normalizeModel(model: string | undefined): string {
 	// like "GPT 5 Codex Low (ChatGPT Subscription)"
 	const normalized = modelId.toLowerCase();
 
+	if (normalized.includes("gpt-5.5") || normalized.includes("gpt 5.5")) {
+		return "gpt-5.5";
+	}
+
 	// Priority order for pattern matching (most specific first):
 	// 1. GPT-5.2 Codex (newest codex model)
 	if (
@@ -144,9 +148,17 @@ export function getReasoningConfig(
 		normalizedName.includes("gpt-5.2-codex") ||
 		normalizedName.includes("gpt 5.2 codex");
 
+	const isLatestGptGeneral =
+		(normalizedName.includes("gpt-5.5") ||
+			normalizedName.includes("gpt 5.5") ||
+			normalizedName.includes("gpt-5.4") ||
+			normalizedName.includes("gpt 5.4"));
+
 	// GPT-5.2 general purpose (not codex variant)
 	const isGpt52General =
-		(normalizedName.includes("gpt-5.2") || normalizedName.includes("gpt 5.2")) &&
+		(isLatestGptGeneral ||
+			normalizedName.includes("gpt-5.2") ||
+			normalizedName.includes("gpt 5.2")) &&
 		!isGpt52Codex;
 	const isCodexMax =
 		normalizedName.includes("codex-max") ||

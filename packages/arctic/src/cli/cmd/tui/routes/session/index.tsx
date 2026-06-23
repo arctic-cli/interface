@@ -1216,7 +1216,10 @@ export function Session() {
         <box flexGrow={1} paddingBottom={1} paddingTop={1} gap={1}>
           <Show when={session()}>
             <scrollbox
-              ref={(r) => (scroll = r)}
+              ref={(r) => {
+                scroll = r
+                if (r?.content) r.content.viewportCulling = false
+              }}
               paddingLeft="0.5%"
               paddingRight="0.5%"
               viewportOptions={{

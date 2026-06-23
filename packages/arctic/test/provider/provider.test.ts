@@ -4,6 +4,7 @@ import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 import { Provider } from "../../src/provider/provider"
 import { Env } from "../../src/env"
+import { Auth } from "../../src/auth"
 
 test("provider loaded from env variable", async () => {
   await using tmp = await tmpdir({
@@ -303,6 +304,40 @@ test("getModel returns model for valid provider/model", async () => {
       expect(model.id).toBe("claude-sonnet-4-20250514")
       const language = await Provider.getLanguage(model)
       expect(language).toBeDefined()
+    },
+  })
+})
+
+test("codex provider includes gpt-5.5", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "arctic.json"),
+        JSON.stringify({
+          $schema: "https://usearctic.sh/config.json",
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    init: async () => {
+      await Auth.set("codex", {
+        type: "codex",
+        accessToken: "access",
+        refreshToken: "refresh",
+        idToken: "id",
+        expiresAt: Date.now() + 3600 * 1000,
+      })
+    },
+    fn: async () => {
+      const model = await Provider.getModel("codex", "gpt-5.5")
+      expect(model).toBeDefined()
+      expect(model.providerID).toBe("codex")
+      expect(model.id).toBe("gpt-5.5")
+      expect(model.api.id).toBe("gpt-5.5")
+      expect(model.limit.context).toBe(1_050_000)
+      expect(model.limit.output).toBe(128_000)
     },
   })
 })

@@ -62,7 +62,13 @@ export function getModelFamily(normalizedModel: string): ModelFamily {
   if (normalizedModel.includes("codex") || normalizedModel.startsWith("codex-")) {
     return "codex"
   }
-  if (normalizedModel.includes("gpt-5.2")) {
+  if (
+    normalizedModel.includes("gpt-5.5") ||
+    normalizedModel.includes("gpt 5.5") ||
+    normalizedModel.includes("gpt-5.4") ||
+    normalizedModel.includes("gpt 5.4") ||
+    normalizedModel.includes("gpt-5.2")
+  ) {
     return "gpt-5.2"
   }
   return "gpt-5.1"

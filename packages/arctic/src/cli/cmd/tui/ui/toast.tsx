@@ -57,8 +57,8 @@ function init() {
   const toast = {
     show(options: ToastOptions) {
       const parsedOptions = TuiEvent.ToastShow.properties.parse(options)
-      if (parsedOptions.variant === "error") return
-      const { duration, ...currentToast } = parsedOptions
+      const duration = parsedOptions.duration ?? (parsedOptions.variant === "error" ? 8000 : 5000)
+      const { duration: _duration, ...currentToast } = { ...parsedOptions, duration }
       setStore("currentToast", currentToast)
       if (timeoutHandle) clearTimeout(timeoutHandle)
       timeoutHandle = setTimeout(() => {

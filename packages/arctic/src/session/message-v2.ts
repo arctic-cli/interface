@@ -413,6 +413,30 @@ export namespace MessageV2 {
   })
   export type WithParts = z.infer<typeof WithParts>
 
+  // consecutive messages of the same role (e.g. two user messages in a row)
+  // are invalid for most providers and cause errors or dropped content.
+  // this happens when an errored assistant message is filtered out, leaving
+  // its parent user message adjacent to the next one. merge them so roles
+  // always alternate.
+  function mergeConsecutiveMessages(messages: ModelMessage[]): ModelMessage[] {
+    const result: ModelMessage[] = []
+    for (const message of messages) {
+      const previous = result.at(-1)
+      if (
+        previous &&
+        previous.role === message.role &&
+        message.role !== "system" &&
+        Array.isArray(previous.content) &&
+        Array.isArray(message.content)
+      ) {
+        ;(previous.content as unknown[]).push(...(message.content as unknown[]))
+        continue
+      }
+      result.push(message)
+    }
+    return result
+  }
+
   export function toModelMessage(
     input: {
       info: Info
@@ -529,7 +553,7 @@ export namespace MessageV2 {
       }
     }
 
-    return convertToModelMessages(result.filter((msg) => msg.parts.length > 0))
+    return mergeConsecutiveMessages(convertToModelMessages(result.filter((msg) => msg.parts.length > 0)))
   }
 
   export const stream = fn(Identifier.schema("session"), async function* (sessionID) {

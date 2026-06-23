@@ -185,8 +185,7 @@ export namespace CodexClient {
         chatgpt_plan_type: authClaims?.chatgpt_plan_type,
         chatgpt_account_id: authClaims?.chatgpt_account_id,
       }
-    } catch (error) {
-      console.error("Failed to parse ID token:", error)
+    } catch {
       return null
     }
   }

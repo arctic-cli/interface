@@ -1309,6 +1309,32 @@ export namespace Provider {
             cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
             limit: { context: 1_050_000, input: 272_000, output: 128_000 },
             options: {
+              description: "General purpose model with 1M context window.",
+            },
+            headers: {},
+          },
+          "gpt-5.5": {
+            id: "gpt-5.5",
+            providerID: "codex",
+            name: "gpt-5.5",
+            api: {
+              id: "gpt-5.5",
+              url: CHATGPT_CODEX_API_BASE,
+              npm: "@ai-sdk/openai-compatible",
+            },
+            status: "active",
+            capabilities: {
+              temperature: true,
+              reasoning: true,
+              attachment: true,
+              toolcall: true,
+              input: { text: true, audio: false, image: true, video: false, pdf: true },
+              output: { text: true, audio: false, image: true, video: false, pdf: false },
+              interleaved: true,
+            },
+            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+            limit: { context: 1_050_000, input: 272_000, output: 128_000 },
+            options: {
               description: "Latest general purpose model with 1M context window.",
             },
             headers: {},

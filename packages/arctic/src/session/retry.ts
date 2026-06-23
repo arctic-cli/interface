@@ -89,8 +89,27 @@ export namespace SessionRetry {
     return Math.min(RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1), RETRY_MAX_DELAY_NO_HEADERS)
   }
 
+  // check if error is a permanent billing/quota exhaustion (not retryable)
+  function isPermanentUsageError(error: MessageV2.APIError): boolean {
+    const message = error.data.message.toLowerCase()
+    if (message.includes("usage_limit_reached") || message.includes("usage_not_included")) return true
+
+    if (error.data.responseBody) {
+      try {
+        const body = JSON.parse(error.data.responseBody)
+        const errorObj = Array.isArray(body) ? body[0]?.error : body?.error
+        const type = errorObj?.type ?? ""
+        if (type === "usage_limit_reached" || type === "usage_not_included") return true
+      } catch {}
+    }
+
+    return false
+  }
+
   // check if error is a rate limit error (429 or RESOURCE_EXHAUSTED)
   function isRateLimitError(error: MessageV2.APIError): boolean {
+    if (isPermanentUsageError(error)) return false
+
     // check status code
     if (error.data.statusCode === 429) return true
 

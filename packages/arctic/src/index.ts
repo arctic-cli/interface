@@ -26,6 +26,8 @@ import { Installation } from "./installation"
 import { Telemetry } from "./telemetry"
 import { Log } from "./util/log"
 
+const argv = hideBin(process.argv)
+
 const RunCommand: any = {
   command: "run [message..]",
   describe: "run arctic with a message",
@@ -152,7 +154,7 @@ process.on("uncaughtException", (e) => {
   })
 })
 
-const cli = yargs(hideBin(process.argv))
+const cli = yargs(argv)
   .parserConfiguration({ "populate--": true })
   .scriptName("arctic")
   .wrap(100)
@@ -195,11 +197,15 @@ const cli = yargs(hideBin(process.argv))
       args: process.argv.slice(2),
     })
 
-    await maybeImportClaudeCommands()
-    await maybeImportClaudeAgents()
-    await maybeImportClaudeMcp()
-    await maybeImportExternalAuth()
-    await maybeImportOpenCodeConfig()
+    // Only run interactive import onboarding in default TUI mode.
+    const isDefaultInvocation = argv.length === 0
+    if (isDefaultInvocation) {
+      await maybeImportClaudeCommands()
+      await maybeImportClaudeAgents()
+      await maybeImportClaudeMcp()
+      await maybeImportExternalAuth()
+      await maybeImportOpenCodeConfig()
+    }
 
     const command = process.argv[2] || "default"
     await Telemetry.dailyHeartbeat()
